@@ -40,10 +40,10 @@ export const UserManagement: React.FC = () => {
             setRoles(rolesRes.data);
             setTeams(teamsRes.data);
             if (rolesRes.data.length > 0 && !editingUser) {
-                // Set default role to the least privileged one (last in list usually)
-                const analystRole = rolesRes.data.find((r: any) => r.role_nm === 'DPE_DATA_ANALYST');
-                if (analystRole) {
-                    setFormData(prev => ({ ...prev, role_id: analystRole.id }));
+                // Set default role to Viewer (the least privileged template)
+                const viewerRole = rolesRes.data.find((r: any) => r.role_nm === 'Viewer' || r.role_nm === 'DPE_DATA_ANALYST');
+                if (viewerRole) {
+                    setFormData(prev => ({ ...prev, role_id: viewerRole.id }));
                 }
             }
         } catch (err) {
@@ -91,13 +91,13 @@ export const UserManagement: React.FC = () => {
     const handleCreate = () => {
         setEditingUser(null);
         setNewMembership({ user_id: '', team_id: '', role_id: '' });
-        const analystRole = roles.find((r: any) => r.role_nm === 'DPE_DATA_ANALYST');
+        const viewerRole = roles.find((r: any) => r.role_nm === 'Viewer' || r.role_nm === 'DPE_DATA_ANALYST');
         setFormData({
             username: '',
             password: '',
             full_nm: '',
             email: '',
-            role_id: analystRole?.id || roles[0]?.id || 0,
+            role_id: viewerRole?.id || roles[0]?.id || 0,
             actv_ind: true
         });
         setShowModal(true);
@@ -378,7 +378,7 @@ export const UserManagement: React.FC = () => {
                                     </td>
                                     <td style={{ padding: '1.25rem' }}>
                                         <div className="status-badge" style={{ background: 'rgba(129, 140, 248, 0.1)', color: '#818cf8', padding: '0.2rem 0.6rem', fontSize: '0.7rem', fontWeight: 700, borderRadius: '6px', border: '1px solid rgba(129, 140, 248, 0.2)' }}>
-                                            {(u.role?.role_nm || 'Developer').replace('DPE_', '').replace(/_/g, ' ')}
+                                            {(u.role?.role_nm || 'Developer').replace('DPE_', '').replace(/([A-Z])/g, ' $1').trim()}
                                         </div>
                                     </td>
                                     {teams.map(t => {
@@ -394,8 +394,8 @@ export const UserManagement: React.FC = () => {
                                                         background: 'rgba(16, 185, 129, 0.05)',
                                                         borderRadius: '4px'
                                                     }}>
-                                                        {membership.role?.role_nm.replace('DPE_', '').split('_').pop() === 'ADMIN' ? 'ADMIN' :
-                                                            membership.role?.role_nm.replace('DPE_', '').split('_').pop()}
+                                                        {membership.role?.role_nm.toUpperCase().includes('ADMIN') ? 'ADMIN' :
+                                                            membership.role?.role_nm.replace('DPE_', '')}
                                                     </span>
                                                 ) : (
                                                     <span style={{ color: 'var(--text-tertiary)', opacity: 0.3 }}>—</span>

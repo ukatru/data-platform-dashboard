@@ -80,26 +80,6 @@ def create_team(
         creat_by_nm=tenant_ctx.user.username
     )
     db.add(db_team)
-    db.flush() # Flush to get the team ID
-    
-    # Auto-provision default roles for the new team using standardized naming
-    # Industry standard: TEAM_NAME_ROLE_TYPE (all caps, snake_case)
-    normalized_nm = db_team.team_nm.upper().replace(" ", "_")
-    default_roles = [
-        {"nm": f"{normalized_nm}_LEAD", "desc": f"Lead for {db_team.team_nm} - Can manage connections and users."},
-        {"nm": f"{normalized_nm}_RW", "desc": f"Read-Write for {db_team.team_nm} - Can manage pipelines and schedules."},
-        {"nm": f"{normalized_nm}_READER", "desc": f"Reader for {db_team.team_nm} - Can view runs and history."}
-    ]
-    
-    for r in default_roles:
-        db_role = models.ETLRole(
-            team_id=db_team.id,
-            role_nm=r["nm"],
-            description=r["desc"],
-            creat_by_nm="SYSTEM"
-        )
-        db.add(db_role)
-    
     db.commit()
     db.refresh(db_team)
     return db_team

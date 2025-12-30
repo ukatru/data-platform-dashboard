@@ -25,23 +25,38 @@ def get_access_matrix(
     report_data = []
     
     for user in users:
-        # 1. Global Role Row
-        global_role_nm = user.role.role_nm if user.role else "USER"
+        # 1. Enterprise Role Row
+        enterprise_role = user.role.role_nm if user.role else "USER"
+        level = "User"
+        if enterprise_role in ["OrgAdmin", "DPE_PLATFORM_ADMIN"]:
+            level = "Admin"
+        elif enterprise_role in ["Catalog Viewer", "PLATFORM_VIEWER"]:
+            level = "Read"
+            
         report_data.append({
             "Employee": user.full_nm,
             "Username": user.username,
             "Email": user.email or "",
-            "Scope Type": "Global",
-            "Scope Name": "Platform",
-            "Assigned Role": global_role_nm,
-            "Effective Level": "Admin" if "ADMIN" in global_role_nm else "Viewer" if "VIEWER" in global_role_nm else "User"
+            "Scope Type": "Enterprise",
+            "Scope Name": "Organization",
+            "Assigned Role": enterprise_role,
+            "Effective Level": level
         })
         
         # 2. Team Membership Rows
         for membership in user.team_memberships:
             if membership.actv_ind:
                 role_nm = membership.role.role_nm
-                level = "Write" if "_RW" in role_nm or "_LEAD" in role_nm else "Read"
+                
+                # Dynamic level based on generic templates or legacy patterns
+                level = "Read"
+                if role_nm == "TeamAdmin" or "_LEAD" in role_nm:
+                    level = "Admin"
+                elif role_nm == "Editor" or "_RW" in role_nm:
+                    level = "Write"
+                elif role_nm == "Viewer" or "_READER" in role_nm:
+                    level = "Read"
+                
                 report_data.append({
                     "Employee": user.full_nm,
                     "Username": user.username,

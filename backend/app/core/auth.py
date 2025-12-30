@@ -47,32 +47,35 @@ class Permission:
 
 def get_role_permissions(role_nm: str) -> set[str]:
     """Map roles to granular permissions based on the RACI matrix"""
-    # Global Roles
-    if role_nm == "DPE_PLATFORM_ADMIN":
+    # 1. Enterprise / Organization Roles
+    if role_nm in ["DPE_PLATFORM_ADMIN", "OrgAdmin"]:
         return {
             Permission.CAN_VIEW_LOGS, Permission.CAN_EDIT_PIPELINES,
             Permission.CAN_MANAGE_CONNECTIONS, Permission.CAN_MANAGE_TEAMS,
-            Permission.CAN_MANAGE_USERS, Permission.PLATFORM_ADMIN
+            Permission.CAN_MANAGE_USERS, Permission.PLATFORM_ADMIN,
+            Permission.CAN_VIEW_CONFIG
         }
     
-    # Team Scoped Roles (mapped from names or types)
-    if "_LEAD" in role_nm:
+    if role_nm in ["PLATFORM_VIEWER", "Catalog Viewer"]:
+        return {
+            Permission.CAN_VIEW_LOGS
+        }
+    
+    # 2. Team Role Templates & Legacy Suffix Support
+    if role_nm == "TeamAdmin" or "_LEAD" in role_nm:
         return {
             Permission.CAN_VIEW_LOGS, Permission.CAN_EDIT_PIPELINES,
             Permission.CAN_MANAGE_CONNECTIONS, Permission.CAN_MANAGE_USERS,
             Permission.CAN_VIEW_CONFIG
         }
     
-    if role_nm == "PLATFORM_VIEWER":
-        return {
-            Permission.CAN_VIEW_LOGS
-        }
-    if "_RW" in role_nm or role_nm == "DPE_DEVELOPER":
+    if role_nm == "Editor" or "_RW" in role_nm or role_nm == "DPE_DEVELOPER":
         return {
             Permission.CAN_VIEW_LOGS, Permission.CAN_EDIT_PIPELINES,
             Permission.CAN_VIEW_CONFIG
         }
-    if "_READER" in role_nm or role_nm == "DPE_DATA_ANALYST":
+    
+    if role_nm == "Viewer" or "_READER" in role_nm or role_nm == "DPE_DATA_ANALYST":
         return {
             Permission.CAN_VIEW_LOGS
         }
