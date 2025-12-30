@@ -8,6 +8,9 @@ export const UserManagement: React.FC = () => {
     const [roles, setRoles] = useState<any[]>([]);
     const [teams, setTeams] = useState<any[]>([]);
     const [managingTeam, setManagingTeam] = useState<any | null>(null);
+    const [managingTeamTab, setManagingTeamTab] = useState<'members' | 'settings'>('members');
+    const [teamCodeLocations, setTeamCodeLocations] = useState<any[]>([]);
+    const [editingTeamData, setEditingTeamData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'users' | 'roles' | 'teams'>('users');
     const [searchQuery, setSearchQuery] = useState('');
@@ -25,6 +28,14 @@ export const UserManagement: React.FC = () => {
     const [newMembership, setNewMembership] = useState({ user_id: '', team_id: '', role_id: '' });
     const [membershipLoading, setMembershipLoading] = useState(false);
     const [showPermissionsModal, setShowPermissionsModal] = useState<any>(null);
+    const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
+    const [createTeamData, setCreateTeamData] = useState({
+        team_nm: '',
+        description: '',
+        initial_code_location: '',
+        initial_admin_id: ''
+    });
+    const [creatingTeam, setCreatingTeam] = useState(false);
 
     const { user: currentUser } = useAuth();
 
@@ -125,6 +136,23 @@ export const UserManagement: React.FC = () => {
         }
     };
 
+    const handleCreateTeam = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setCreatingTeam(true);
+        try {
+            await api.management.createTeam({
+                ...createTeamData,
+                initial_admin_id: createTeamData.initial_admin_id ? parseInt(createTeamData.initial_admin_id) : undefined
+            } as any);
+            setShowCreateTeamModal(false);
+            setCreateTeamData({ team_nm: '', description: '', initial_code_location: '', initial_admin_id: '' });
+            fetchData();
+        } catch (err: any) {
+            alert(`Error creating team: ${err.response?.data?.detail || err.message}`);
+        } finally {
+            setCreatingTeam(false);
+        }
+    };
     const handleRemoveMembership = async (teamId: number) => {
         if (!editingUser || !window.confirm('Remove user from this team?')) return;
         setMembershipLoading(true);
@@ -222,8 +250,72 @@ export const UserManagement: React.FC = () => {
         t.team_nm.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const handleManageTeam = (team: any) => {
+    const handleManageTeam = async (team: any) => {
         setManagingTeam(team);
+        setManagingTeamTab('members');
+        setEditingTeamData({ ...team });
+        try {
+            const locations = await api.management.listCodeLocations();
+            setTeamCodeLocations(locations.data.filter((l: any) => l.team_id === team.id));
+        } catch (err) {
+            console.error('Failed to fetch team code locations', err);
+        }
+    };
+
+    const handleUpdateTeam = async () => {
+        if (!editingTeamData) return;
+        setMembershipLoading(true);
+        try {
+            await api.management.patchTeam(editingTeamData.id, editingTeamData);
+            await fetchData();
+            setManagingTeam({ ...editingTeamData });
+            alert('Team updated successfully');
+        } catch (err: any) {
+            alert(`Update failed: ${err.response?.data?.detail || err.message}`);
+        } finally {
+            setMembershipLoading(false);
+        }
+    };
+
+    const handleDeleteTeam = async () => {
+        if (!managingTeam || !window.confirm(`PERMANENTLY DELETE team "${managingTeam.team_nm}"? This will remove all members and code locations.`)) return;
+        setMembershipLoading(true);
+        try {
+            await api.management.deleteTeam(managingTeam.id);
+            setManagingTeam(null);
+            await fetchData();
+        } catch (err: any) {
+            alert(`Deletion failed: ${err.response?.data?.detail || err.message}`);
+        } finally {
+            setMembershipLoading(false);
+        }
+    };
+
+    const handleUpdateCodeLocation = async (locId: number, data: any) => {
+        setMembershipLoading(true);
+        try {
+            await api.management.patchCodeLocation(locId, data);
+            const locations = await api.management.listCodeLocations();
+            setTeamCodeLocations(locations.data.filter((l: any) => l.team_id === managingTeam.id));
+        } catch (err: any) {
+            alert(`Update failed: ${err.response?.data?.detail || err.message}`);
+        } finally {
+            setMembershipLoading(false);
+        }
+    };
+
+    const handleDeleteCodeLocation = async (locId: number) => {
+        if (!window.confirm('Remove this code location?')) return;
+        setMembershipLoading(true);
+        try {
+            await api.management.deleteCodeLocation(locId);
+            const locations = await api.management.listCodeLocations();
+            setTeamCodeLocations(locations.data.filter((l: any) => l.team_id === managingTeam.id));
+        } catch (err: any) {
+            alert(`Deletion failed: ${err.response?.data?.detail || err.message}`);
+        } finally {
+            setMembershipLoading(false);
+        }
     };
 
     const filteredRoles = roles.filter(r =>
@@ -243,14 +335,20 @@ export const UserManagement: React.FC = () => {
                     <p style={{ color: 'var(--text-secondary)' }}>Centralized identity and permission control center</p>
                 </div>
                 <div style={{ display: 'flex', gap: '1rem' }}>
-                    {activeTab === 'users' && (
-                        <button className="btn-secondary" onClick={exportToAccessMatrix} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <Download size={18} /> Export Access Matrix
+                    {activeTab === 'users' ? (
+                        <>
+                            <button className="btn-secondary" onClick={exportToAccessMatrix} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <Download size={18} /> Export Access Matrix
+                            </button>
+                            <button className="btn-primary" onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <UserPlus size={20} /> New Account
+                            </button>
+                        </>
+                    ) : activeTab === 'teams' ? (
+                        <button className="btn-primary" onClick={() => setShowCreateTeamModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <UsersIcon size={20} /> Create New Team
                         </button>
-                    )}
-                    <button className="btn-primary" onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <UserPlus size={20} /> New Account
-                    </button>
+                    ) : null}
                 </div>
             </div>
 
@@ -488,9 +586,9 @@ export const UserManagement: React.FC = () => {
                             <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.02)' }}>
                                 <th style={{ padding: '1.25rem' }}>Team Name</th>
                                 <th style={{ padding: '1.25rem' }}>Members</th>
-                                <th style={{ padding: '1.25rem', textAlign: 'center' }}>Leads</th>
-                                <th style={{ padding: '1.25rem', textAlign: 'center' }}>Writers</th>
-                                <th style={{ padding: '1.25rem', textAlign: 'center' }}>Readers</th>
+                                <th style={{ padding: '1.25rem', textAlign: 'center' }}>Admins</th>
+                                <th style={{ padding: '1.25rem', textAlign: 'center' }}>Editors</th>
+                                <th style={{ padding: '1.25rem', textAlign: 'center' }}>Viewers</th>
                                 <th style={{ padding: '1.25rem', textAlign: 'right' }}>Actions</th>
                             </tr>
                         </thead>
@@ -531,10 +629,10 @@ export const UserManagement: React.FC = () => {
                                                 )}
                                             </div>
                                         </td>
-                                        {['LEAD', 'WRITER', 'READER'].map(roleType => (
+                                        {['TeamAdmin', 'Editor', 'Viewer'].map(roleType => (
                                             <td key={roleType} style={{ padding: '1.25rem', textAlign: 'center' }}>
                                                 <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>
-                                                    {teamMembers.filter(m => m.team_memberships.some((tm: any) => tm.team_id === team.id && tm.role?.role_nm.includes(roleType))).length}
+                                                    {teamMembers.filter(m => m.team_memberships.some((tm: any) => tm.team_id === team.id && tm.role?.role_nm === roleType)).length}
                                                 </span>
                                             </td>
                                         ))}
@@ -762,156 +860,303 @@ export const UserManagement: React.FC = () => {
             )}
 
             {/* Team Management Modal */}
+            {showCreateTeamModal && (
+                <div className="modal-overlay">
+                    <div className="glass modal-content" style={{ maxWidth: '600px', width: '90%' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                            <h2 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Onboard New Team</h2>
+                            <button onClick={() => setShowCreateTeamModal(false)} className="btn-icon"><X size={20} /></button>
+                        </div>
+                        <form onSubmit={handleCreateTeam} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                            <div className="form-group">
+                                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Team Name</label>
+                                <input
+                                    required
+                                    placeholder="e.g. Marketing Data"
+                                    value={createTeamData.team_nm}
+                                    onChange={e => setCreateTeamData({ ...createTeamData, team_nm: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Description</label>
+                                <input
+                                    placeholder="Brief purpose of the team..."
+                                    value={createTeamData.description}
+                                    onChange={e => setCreateTeamData({ ...createTeamData, description: e.target.value })}
+                                />
+                            </div>
+
+                            <div style={{ padding: '1.25rem', background: 'rgba(52, 211, 153, 0.05)', borderRadius: '12px', border: '1px solid rgba(52, 211, 153, 0.1)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#34d399', fontWeight: 600, marginBottom: '1rem' }}>
+                                    <Info size={16} /> Initial Onboarding (Optional)
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                    <div className="form-group">
+                                        <label style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>Main Repository URL (Code Location)</label>
+                                        <input
+                                            placeholder="https://github.com/..."
+                                            value={createTeamData.initial_code_location}
+                                            onChange={e => setCreateTeamData({ ...createTeamData, initial_code_location: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+                                <button type="button" onClick={() => setShowCreateTeamModal(false)} className="btn-secondary">Cancel</button>
+                                <button type="submit" className="btn-primary" disabled={creatingTeam}>
+                                    {creatingTeam ? 'Onboarding...' : 'Onboard Team'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
             {managingTeam && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 150, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setManagingTeam(null)}>
-                    <div className="glass" onClick={e => e.stopPropagation()} style={{ width: '800px', maxWidth: '90vw', maxHeight: '90vh', padding: '2.5rem', overflowY: 'auto' }}>
+                <div className="modal-overlay" onClick={() => setManagingTeam(null)}>
+                    <div className="glass modal-content" onClick={e => e.stopPropagation()} style={{ width: '800px', maxWidth: '90vw' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '1.5rem' }}>
                             <div>
                                 <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Manage {managingTeam.team_nm}</h2>
-                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Member directory and role management</p>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Team directory and configuration</p>
                             </div>
                             <button onClick={() => setManagingTeam(null)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}><X size={24} /></button>
                         </div>
 
-                        {/* Search & Add Section */}
-                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '12px', marginBottom: '2.5rem', border: '1px solid var(--glass-border)' }}>
-                            <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--accent-primary)', marginBottom: '1.25rem', fontWeight: 700 }}>Add New Member</h4>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '1rem', alignItems: 'flex-end' }}>
-                                <div className="form-group">
-                                    <label style={{ fontSize: '0.75rem' }}>Select User</label>
-                                    <select
-                                        className="dark-select"
-                                        style={{ fontSize: '0.85rem' }}
-                                        value={newMembership.user_id}
-                                        onChange={e => setNewMembership({ ...newMembership, user_id: e.target.value })}
-                                    >
-                                        <option value="">Search users...</option>
-                                        {users.filter(u => !u.team_memberships?.some((tm: any) => tm.team_id === managingTeam.id)).map(u => (
-                                            <option key={u.id} value={u.id}>{u.full_nm} ({u.username})</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="form-group">
-                                    <label style={{ fontSize: '0.75rem' }}>Assign Role</label>
-                                    <select
-                                        className="dark-select"
-                                        style={{ fontSize: '0.85rem' }}
-                                        value={newMembership.role_id}
-                                        onChange={e => setNewMembership({ ...newMembership, role_id: e.target.value })}
-                                    >
-                                        <option value="">Select Role...</option>
-                                        {roles.filter(r => r.team_id === null).map(r => (
-                                            <option key={r.id} value={r.id}>{r.role_nm.replace('DPE_', '').replace(/_/g, ' ')}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <button
-                                    className="btn-primary"
-                                    style={{ padding: '0.6rem 1.25rem', height: '42px' }}
-                                    onClick={async () => {
-                                        if (!newMembership.user_id || !newMembership.role_id) return;
-                                        setMembershipLoading(true);
-                                        try {
-                                            await api.management.addTeamMember(managingTeam.id, {
-                                                user_id: parseInt(newMembership.user_id),
-                                                team_id: managingTeam.id,
-                                                role_id: parseInt(newMembership.role_id)
-                                            });
-                                            setNewMembership({ ...newMembership, user_id: '', role_id: '' });
-                                            await fetchData();
-                                        } finally {
-                                            setMembershipLoading(false);
-                                        }
-                                    }}
-                                    disabled={!newMembership.user_id || !newMembership.role_id || membershipLoading}
-                                >
-                                    Add Member
-                                </button>
-                            </div>
+                        {/* Modal Tabs */}
+                        <div style={{ display: 'flex', gap: '2rem', borderBottom: '1px solid var(--glass-border)', marginBottom: '2rem' }}>
+                            <button
+                                onClick={() => setManagingTeamTab('members')}
+                                style={{ background: 'none', border: 'none', padding: '1rem 0', color: managingTeamTab === 'members' ? 'var(--accent-primary)' : 'var(--text-secondary)', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer', borderBottom: managingTeamTab === 'members' ? '2px solid var(--accent-primary)' : 'none' }}>
+                                Members
+                            </button>
+                            <button
+                                onClick={() => setManagingTeamTab('settings')}
+                                style={{ background: 'none', border: 'none', padding: '1rem 0', color: managingTeamTab === 'settings' ? 'var(--accent-primary)' : 'var(--text-secondary)', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer', borderBottom: managingTeamTab === 'settings' ? '2px solid var(--accent-primary)' : 'none' }}>
+                                Settings
+                            </button>
                         </div>
 
-                        {/* Current Members List */}
-                        <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                                <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Current Members</h4>
-                                <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.6rem', borderRadius: '4px' }}>
-                                    {users.filter(u => u.team_memberships?.some((tm: any) => tm.team_id === managingTeam.id)).length} TOTAL
-                                </span>
-                            </div>
-                            <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--glass-border)', overflow: 'hidden' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                    <thead style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--glass-border)' }}>
-                                        <tr style={{ textAlign: 'left' }}>
-                                            <th style={{ padding: '1rem', fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Employee</th>
-                                            <th style={{ padding: '1rem', fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Team Role</th>
-                                            <th style={{ padding: '1rem', fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {users.filter(u => u.team_memberships?.some((tm: any) => tm.team_id === managingTeam.id)).map(u => {
-                                            const membership = u.team_memberships.find((tm: any) => tm.team_id === managingTeam.id);
-                                            return (
-                                                <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                                                    <td style={{ padding: '1.25rem 1rem' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                                            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.85rem' }}>
-                                                                {u.username[0].toUpperCase()}
-                                                            </div>
-                                                            <div>
-                                                                <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{u.full_nm}</div>
-                                                                <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>{u.email}</div>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td style={{ padding: '1rem' }}>
-                                                        <select
-                                                            className="dark-select"
-                                                            style={{ fontSize: '0.85rem', padding: '0.4rem 0.6rem', minWidth: '160px' }}
-                                                            value={membership.role?.id}
-                                                            onChange={async (e) => {
-                                                                setMembershipLoading(true);
-                                                                try {
-                                                                    await api.management.addTeamMember(managingTeam.id, {
-                                                                        user_id: u.id,
-                                                                        team_id: managingTeam.id,
-                                                                        role_id: parseInt(e.target.value)
-                                                                    });
-                                                                    await fetchData();
-                                                                } finally {
-                                                                    setMembershipLoading(false);
-                                                                }
-                                                            }}
-                                                        >
-                                                            {roles.filter(r => r.team_id === null).map(r => (
-                                                                <option key={r.id} value={r.id}>{r.role_nm.replace('DPE_', '').replace(/_/g, ' ')}</option>
-                                                            ))}
-                                                        </select>
-                                                    </td>
-                                                    <td style={{ padding: '1rem', textAlign: 'right' }}>
-                                                        <button
-                                                            className="btn-secondary"
-                                                            style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)', padding: '0.5rem', background: 'rgba(239, 68, 68, 0.05)' }}
-                                                            onClick={async () => {
-                                                                if (!confirm(`Are you sure you want to remove ${u.full_nm} from ${managingTeam.team_nm}?`)) return;
-                                                                setMembershipLoading(true);
-                                                                try {
-                                                                    await api.management.removeTeamMember(managingTeam.id, u.id);
-                                                                    await fetchData();
-                                                                } finally {
-                                                                    setMembershipLoading(false);
-                                                                }
-                                                            }}
-                                                        >
-                                                            <X size={18} />
-                                                        </button>
-                                                    </td>
+                        {managingTeamTab === 'members' ? (
+                            <>
+                                {/* Search & Add Section */}
+                                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '12px', marginBottom: '2.5rem', border: '1px solid var(--glass-border)' }}>
+                                    <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--accent-primary)', marginBottom: '1.25rem', fontWeight: 700 }}>Add New Member</h4>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '1rem', alignItems: 'flex-end' }}>
+                                        <div className="form-group">
+                                            <label style={{ fontSize: '0.75rem' }}>Select User</label>
+                                            <select
+                                                className="dark-select"
+                                                style={{ fontSize: '0.85rem' }}
+                                                value={newMembership.user_id}
+                                                onChange={e => setNewMembership({ ...newMembership, user_id: e.target.value })}
+                                            >
+                                                <option value="">Search users...</option>
+                                                {users.filter(u => !u.team_memberships?.some((tm: any) => tm.team_id === managingTeam.id)).map(u => (
+                                                    <option key={u.id} value={u.id}>{u.full_nm} ({u.username})</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="form-group">
+                                            <label style={{ fontSize: '0.75rem' }}>Assign Role</label>
+                                            <select
+                                                className="dark-select"
+                                                style={{ fontSize: '0.85rem' }}
+                                                value={newMembership.role_id}
+                                                onChange={e => setNewMembership({ ...newMembership, role_id: e.target.value })}
+                                            >
+                                                <option value="">Select Role...</option>
+                                                {roles.filter(r => r.team_id === null).map(r => (
+                                                    <option key={r.id} value={r.id}>{r.role_nm.replace('DPE_', '').replace(/_/g, ' ')}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <button
+                                            className="btn-primary"
+                                            style={{ padding: '0.6rem 1.25rem', height: '42px' }}
+                                            onClick={async () => {
+                                                if (!newMembership.user_id || !newMembership.role_id) return;
+                                                setMembershipLoading(true);
+                                                try {
+                                                    await api.management.addTeamMember(managingTeam.id, {
+                                                        user_id: parseInt(newMembership.user_id),
+                                                        team_id: managingTeam.id,
+                                                        role_id: parseInt(newMembership.role_id)
+                                                    });
+                                                    setNewMembership({ ...newMembership, user_id: '', role_id: '' });
+                                                    await fetchData();
+                                                } finally {
+                                                    setMembershipLoading(false);
+                                                }
+                                            }}
+                                            disabled={!newMembership.user_id || !newMembership.role_id || membershipLoading}
+                                        >
+                                            Add Member
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Current Members List */}
+                                <div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                        <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Current Members</h4>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.6rem', borderRadius: '4px' }}>
+                                            {users.filter(u => u.team_memberships?.some((tm: any) => tm.team_id === managingTeam.id)).length} TOTAL
+                                        </span>
+                                    </div>
+                                    <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--glass-border)', overflow: 'hidden' }}>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                            <thead style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--glass-border)' }}>
+                                                <tr style={{ textAlign: 'left' }}>
+                                                    <th style={{ padding: '1rem', fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Employee</th>
+                                                    <th style={{ padding: '1rem', fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Team Role</th>
+                                                    <th style={{ padding: '1rem', fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
                                                 </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
+                                            </thead>
+                                            <tbody>
+                                                {users.filter(u => u.team_memberships?.some((tm: any) => tm.team_id === managingTeam.id)).map(u => {
+                                                    const membership = u.team_memberships.find((tm: any) => tm.team_id === managingTeam.id);
+                                                    return (
+                                                        <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                                            <td style={{ padding: '1.25rem 1rem' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.85rem' }}>
+                                                                        {u.username[0].toUpperCase()}
+                                                                    </div>
+                                                                    <div>
+                                                                        <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{u.full_nm}</div>
+                                                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>{u.email}</div>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td style={{ padding: '1rem' }}>
+                                                                <select
+                                                                    className="dark-select"
+                                                                    style={{ fontSize: '0.85rem', padding: '0.4rem 0.6rem', minWidth: '160px' }}
+                                                                    value={membership.role?.id}
+                                                                    onChange={async (e) => {
+                                                                        setMembershipLoading(true);
+                                                                        try {
+                                                                            await api.management.addTeamMember(managingTeam.id, {
+                                                                                user_id: u.id,
+                                                                                team_id: managingTeam.id,
+                                                                                role_id: parseInt(e.target.value)
+                                                                            });
+                                                                            await fetchData();
+                                                                        } finally {
+                                                                            setMembershipLoading(false);
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    {roles.filter(r => r.team_id === null).map(r => (
+                                                                        <option key={r.id} value={r.id}>{r.role_nm.replace('DPE_', '').replace(/_/g, ' ')}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </td>
+                                                            <td style={{ padding: '1rem', textAlign: 'right' }}>
+                                                                <button
+                                                                    className="btn-secondary"
+                                                                    style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)', padding: '0.5rem', background: 'rgba(239, 68, 68, 0.05)' }}
+                                                                    onClick={async () => {
+                                                                        if (!confirm(`Are you sure you want to remove ${u.full_nm} from ${managingTeam.team_nm}?`)) return;
+                                                                        setMembershipLoading(true);
+                                                                        try {
+                                                                            await api.management.removeTeamMember(managingTeam.id, u.id);
+                                                                            await fetchData();
+                                                                        } finally {
+                                                                            setMembershipLoading(false);
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <X size={18} />
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                                {/* Team Metadata Settings */}
+                                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                                    <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>General Settings</h4>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                                        <div className="form-group">
+                                            <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Team Name</label>
+                                            <input
+                                                value={editingTeamData?.team_nm}
+                                                onChange={e => setEditingTeamData({ ...editingTeamData, team_nm: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Description</label>
+                                            <input
+                                                value={editingTeamData?.description}
+                                                onChange={e => setEditingTeamData({ ...editingTeamData, description: e.target.value })}
+                                            />
+                                        </div>
+                                        <div style={{ marginTop: '0.5rem' }}>
+                                            <button className="btn-primary" onClick={handleUpdateTeam} disabled={membershipLoading}>
+                                                Save Changes
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Code Locations / Repositories */}
+                                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                                    <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Connected Repositories</h4>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                        {teamCodeLocations.map(loc => (
+                                            <div key={loc.id} style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '1rem', alignItems: 'center' }}>
+                                                <div className="form-group">
+                                                    <label style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>Display Name</label>
+                                                    <input
+                                                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
+                                                        value={loc.location_nm}
+                                                        onChange={e => setTeamCodeLocations(teamCodeLocations.map(l => l.id === loc.id ? { ...l, location_nm: e.target.value } : l))}
+                                                    />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>Repo URL</label>
+                                                    <input
+                                                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
+                                                        value={loc.repo_url}
+                                                        onChange={e => setTeamCodeLocations(teamCodeLocations.map(l => l.id === loc.id ? { ...l, repo_url: e.target.value } : l))}
+                                                    />
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                    <button className="btn-secondary" style={{ padding: '0.4rem' }} onClick={() => handleUpdateCodeLocation(loc.id, loc)}><CheckSquare size={16} /></button>
+                                                    <button className="btn-secondary" style={{ padding: '0.4rem', color: 'var(--error)' }} onClick={() => handleDeleteCodeLocation(loc.id)}><X size={16} /></button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {teamCodeLocations.length === 0 && (
+                                            <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-tertiary)', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                                                No repositories connected yet.
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Danger Zone */}
+                                <div style={{ background: 'rgba(239, 68, 68, 0.05)', padding: '1.5rem', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                                    <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: '#ef4444', marginBottom: '0.5rem', fontWeight: 700 }}>Danger Zone</h4>
+                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+                                        Permanently delete this team and all associated data. This action cannot be undone.
+                                    </p>
+                                    <button
+                                        onClick={handleDeleteTeam}
+                                        style={{ background: '#ef4444', color: 'white', border: 'none', padding: '0.6rem 1.25rem', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
+                                        Delete Team
+                                    </button>
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -932,6 +1177,23 @@ export const UserManagement: React.FC = () => {
                 .form-group input:focus, .form-group select:focus, .dark-select:focus {
                     outline: none;
                     border-color: var(--accent-primary);
+                }
+                .modal-overlay {
+                    position: fixed;
+                    inset: 0;
+                    background: rgba(0,0,0,0.8);
+                    backdrop-filter: blur(8px);
+                    z-index: 200;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 2rem;
+                }
+                .modal-content {
+                    max-height: 90vh;
+                    overflow-y: auto;
+                    padding: 2.5rem;
+                    border: 1px solid var(--glass-border);
                 }
             `}</style>
         </div>

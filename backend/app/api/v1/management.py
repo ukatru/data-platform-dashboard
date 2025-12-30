@@ -80,9 +80,93 @@ def create_team(
         creat_by_nm=tenant_ctx.user.username
     )
     db.add(db_team)
+    db.flush() # Get team ID
+    
+    # 1. Automated Onboarding: Initial Code Location
+    if team_in.initial_code_location:
+        db_loc = models.ETLCodeLocation(
+            team_id=db_team.id,
+            location_nm=f"{db_team.team_nm} Default",
+            repo_url=team_in.initial_code_location,
+            creat_by_nm=tenant_ctx.user.username
+        )
+        db.add(db_loc)
+        
+    # 2. Automated Onboarding: Initial Team Admin
+    if team_in.initial_admin_id:
+        # Find generic TeamAdmin role
+        role = db.query(models.ETLRole).filter(
+            models.ETLRole.role_nm == 'TeamAdmin', 
+            models.ETLRole.team_id == None
+        ).first()
+        
+        if role:
+            db_member = models.ETLTeamMember(
+                user_id=team_in.initial_admin_id,
+                team_id=db_team.id,
+                role_id=role.id,
+                creat_by_nm=tenant_ctx.user.username
+            )
+            db.add(db_member)
+
     db.commit()
     db.refresh(db_team)
     return db_team
+
+@router.patch("/teams/{team_id}", response_model=schemas.Team)
+def update_team(
+    team_id: int,
+    team_in: schemas.TeamUpdate,
+    db: Session = Depends(get_db),
+    tenant_ctx: auth.TenantContext = Depends(auth.require_permission(auth.Permission.CAN_MANAGE_TEAMS))
+):
+    """Update team metadata"""
+    team = db.query(models.ETLTeam).filter(models.ETLTeam.id == team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+        
+    if tenant_ctx.org_id is not None and team.org_id != tenant_ctx.org_id:
+        raise HTTPException(status_code=403, detail="Access denied to this team")
+        
+    update_data = team_in.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(team, field, value)
+        
+    team.updt_by_nm = tenant_ctx.user.username
+    db.add(team)
+    db.commit()
+    db.refresh(team)
+    return team
+
+@router.delete("/teams/{team_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_team(
+    team_id: int,
+    db: Session = Depends(get_db),
+    tenant_ctx: auth.TenantContext = Depends(auth.require_permission(auth.Permission.CAN_MANAGE_TEAMS))
+):
+    """Delete a team and its associated resources"""
+    team = db.query(models.ETLTeam).filter(models.ETLTeam.id == team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+        
+    if tenant_ctx.org_id is not None and team.org_id != tenant_ctx.org_id:
+        raise HTTPException(status_code=403, detail="Access denied to this team")
+        
+    # Check for memberships
+    memberships = db.query(models.ETLTeamMember).filter(models.ETLTeamMember.team_id == team_id).all()
+    if memberships:
+        # For now, let's allow deletion but delete memberships too
+        for m in memberships:
+            db.delete(m)
+            
+    # Check for code locations
+    locs = db.query(models.ETLCodeLocation).filter(models.ETLCodeLocation.team_id == team_id).all()
+    for loc in locs:
+        db.delete(loc)
+        
+    db.delete(team)
+    db.commit()
+    return None
 
 # --- Team Member Endpoints ---
 
@@ -216,3 +300,50 @@ def register_code_location(
     db.commit()
     db.refresh(db_loc)
     return db_loc
+
+@router.patch("/code-locations/{loc_id}", response_model=schemas.CodeLocation)
+def update_code_location(
+    loc_id: int,
+    loc_in: schemas.CodeLocationUpdate,
+    db: Session = Depends(get_db),
+    tenant_ctx: auth.TenantContext = Depends(auth.require_permission(auth.Permission.CAN_EDIT_PIPELINES))
+):
+    """Update code location (repository) details"""
+    loc = db.query(models.ETLCodeLocation).filter(models.ETLCodeLocation.id == loc_id).first()
+    if not loc:
+        raise HTTPException(status_code=404, detail="Code location not found")
+        
+    # Verify the associated team belongs to the user's org
+    team = db.query(models.ETLTeam).filter(models.ETLTeam.id == loc.team_id).first()
+    if tenant_ctx.org_id is not None and team.org_id != tenant_ctx.org_id:
+        raise HTTPException(status_code=403, detail="Access denied to this code location")
+        
+    update_data = loc_in.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(loc, field, value)
+        
+    loc.updt_by_nm = tenant_ctx.user.username
+    db.add(loc)
+    db.commit()
+    db.refresh(loc)
+    return loc
+
+@router.delete("/code-locations/{loc_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_code_location(
+    loc_id: int,
+    db: Session = Depends(get_db),
+    tenant_ctx: auth.TenantContext = Depends(auth.require_permission(auth.Permission.CAN_EDIT_PIPELINES))
+):
+    """Remove a code location"""
+    loc = db.query(models.ETLCodeLocation).filter(models.ETLCodeLocation.id == loc_id).first()
+    if not loc:
+        raise HTTPException(status_code=404, detail="Code location not found")
+        
+    # Verify the associated team belongs to the user's org
+    team = db.query(models.ETLTeam).filter(models.ETLTeam.id == loc.team_id).first()
+    if tenant_ctx.org_id is not None and team.org_id != tenant_ctx.org_id:
+        raise HTTPException(status_code=403, detail="Access denied to this code location")
+        
+    db.delete(loc)
+    db.commit()
+    return None

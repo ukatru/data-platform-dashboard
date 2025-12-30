@@ -116,11 +116,15 @@ export const api = {
         getOrg: (id: number) => apiInstance.get(`${API_BASE}/management/orgs/${id}`),
         listTeams: () => apiInstance.get(`${API_BASE}/management/teams`),
         createTeam: (data: any) => apiInstance.post(`${API_BASE}/management/teams`, data),
+        patchTeam: (id: number, data: any) => apiInstance.patch(`${API_BASE}/management/teams/${id}`, data),
+        deleteTeam: (id: number) => apiInstance.delete(`${API_BASE}/management/teams/${id}`),
         listTeamMembers: (teamId: number) => apiInstance.get(`${API_BASE}/management/teams/${teamId}/members`),
         addTeamMember: (teamId: number, data: any) => apiInstance.post(`${API_BASE}/management/teams/${teamId}/members`, data),
         removeTeamMember: (teamId: number, userId: number) => apiInstance.delete(`${API_BASE}/management/teams/${teamId}/members/${userId}`),
         listCodeLocations: () => apiInstance.get(`${API_BASE}/management/code-locations`),
         registerCodeLocation: (data: any) => apiInstance.post(`${API_BASE}/management/code-locations`, data),
+        patchCodeLocation: (id: number, data: any) => apiInstance.patch(`${API_BASE}/management/code-locations/${id}`, data),
+        deleteCodeLocation: (id: number) => apiInstance.delete(`${API_BASE}/management/code-locations/${id}`),
     },
 
     // Reports

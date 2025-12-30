@@ -48,7 +48,13 @@ class TeamBase(BaseModel):
     actv_ind: bool = True
 
 class TeamCreate(TeamBase):
-    pass
+    initial_code_location: Optional[str] = None # Repo URL
+    initial_admin_id: Optional[int] = None # ID of the user to be assigned as TeamAdmin
+
+class TeamUpdate(BaseModel):
+    team_nm: Optional[str] = None
+    description: Optional[str] = None
+    actv_ind: Optional[bool] = None
 
 class Team(TeamBase, AuditBase):
     id: int
@@ -60,6 +66,10 @@ class CodeLocationBase(BaseModel):
 
 class CodeLocationCreate(CodeLocationBase):
     pass
+
+class CodeLocationUpdate(BaseModel):
+    location_nm: Optional[str] = None
+    repo_url: Optional[str] = None
 
 class CodeLocation(CodeLocationBase, AuditBase):
     id: int
