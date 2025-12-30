@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { api } from '../services/api';
 import {
     LayoutDashboard,
     Workflow,
@@ -12,6 +13,22 @@ import {
 
 export const Sidebar: React.FC = () => {
     const location = useLocation();
+    const [isConnected, setIsConnected] = useState<boolean | null>(null);
+
+    useEffect(() => {
+        const checkHealth = async () => {
+            try {
+                await api.healthCheck();
+                setIsConnected(true);
+            } catch (err) {
+                setIsConnected(false);
+            }
+        };
+
+        checkHealth();
+        const interval = setInterval(checkHealth, 30000); // Check every 30s
+        return () => clearInterval(interval);
+    }, []);
 
     const isActive = (path: string) => location.pathname === path;
 
@@ -57,8 +74,13 @@ export const Sidebar: React.FC = () => {
                 <div className="glass" style={{ padding: '1rem', fontSize: '0.8rem' }}>
                     <div style={{ color: 'var(--text-secondary)' }}>Status</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
-                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--success)' }}></div>
-                        API Connected
+                        <div style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            background: isConnected === null ? 'var(--text-secondary)' : (isConnected ? 'var(--success)' : 'var(--error)')
+                        }}></div>
+                        {isConnected === null ? 'Checking...' : (isConnected ? 'API Connected' : 'API Disconnected')}
                     </div>
                 </div>
             </div>

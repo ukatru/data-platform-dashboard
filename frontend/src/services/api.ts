@@ -62,6 +62,8 @@ export const api = {
             axios.get(`${API_BASE}/status/jobs`, { params: filters }),
         assets: (btchNbr: number) => axios.get(`${API_BASE}/status/jobs/${btchNbr}/assets`),
     },
+
+    healthCheck: () => axios.get(`${API_BASE}/`),
 };
 
 // Types for metadata-driven tables
