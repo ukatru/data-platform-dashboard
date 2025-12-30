@@ -800,7 +800,7 @@ export const UserManagement: React.FC = () => {
                                         onChange={e => setNewMembership({ ...newMembership, role_id: e.target.value })}
                                     >
                                         <option value="">Select Role...</option>
-                                        {roles.filter(r => r.team_id === managingTeam.id).map(r => (
+                                        {roles.filter(r => r.team_id === null).map(r => (
                                             <option key={r.id} value={r.id}>{r.role_nm.replace('DPE_', '').replace(/_/g, ' ')}</option>
                                         ))}
                                     </select>
@@ -882,7 +882,7 @@ export const UserManagement: React.FC = () => {
                                                                 }
                                                             }}
                                                         >
-                                                            {roles.filter(r => r.team_id === managingTeam.id).map(r => (
+                                                            {roles.filter(r => r.team_id === null).map(r => (
                                                                 <option key={r.id} value={r.id}>{r.role_nm.replace('DPE_', '').replace(/_/g, ' ')}</option>
                                                             ))}
                                                         </select>
