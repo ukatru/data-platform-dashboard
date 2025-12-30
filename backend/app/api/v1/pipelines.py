@@ -1,0 +1,171 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from typing import List, Dict, Any
+from datetime import datetime
+import sys
+
+sys.path.append("/home/ukatru/github/dagster-dag-factory/src")
+sys.path.append("/home/ukatru/github/dagster-metadata-framework/src")
+
+from metadata_framework import models
+from ...core.database import get_db
+from ... import schemas
+from ...services.validator import validate_params_against_schema
+
+router = APIRouter()
+
+@router.get("/", response_model=List[schemas.Job])
+def list_pipelines(db: Session = Depends(get_db)):
+    """List all pipelines (jobs)"""
+    results = db.query(models.ETLJob, models.ETLSchedule.slug, models.ETLSchedule.cron)\
+        .outerjoin(models.ETLSchedule, models.ETLJob.schedule_id == models.ETLSchedule.id)\
+        .all()
+    
+    jobs = []
+    for job, slug, cron in results:
+        job_data = schemas.Job.model_validate(job)
+        # Coalesce logic: Custom Cron > Central Schedule > Manual
+        if job.cron_schedule:
+            job_data.schedule = f"Custom: {job.cron_schedule}"
+        elif slug:
+            job_data.schedule = f"{slug} ({cron})"
+        else:
+            job_data.schedule = "Manual"
+        jobs.append(job_data)
+        
+    return jobs
+
+@router.post("/", response_model=schemas.Job, status_code=status.HTTP_201_CREATED)
+def create_pipeline(job: schemas.JobCreate, db: Session = Depends(get_db)):
+    """
+    Create a new pipeline (composite operation).
+    Creates records in:
+    1. etl_job - main pipeline record
+    2. etl_job_parameter - initialize with empty config (optional)
+    """
+    # Create the job
+    db_job = models.ETLJob(**job.model_dump(), creat_by_nm="DASHBOARD")
+    db.add(db_job)
+    db.commit()
+    db.refresh(db_job)
+    
+    # Initialize empty parameter record
+    db_params = models.ETLJobParameter(
+        etl_job_id=db_job.id,
+        config_json={},
+        creat_by_nm="DASHBOARD"
+    )
+    db.add(db_params)
+    db.commit()
+    
+    return get_pipeline(db_job.id, db)
+
+@router.get("/{job_id}", response_model=schemas.Job)
+def get_pipeline(job_id: int, db: Session = Depends(get_db)):
+    """Get pipeline by ID"""
+    result = db.query(models.ETLJob, models.ETLSchedule.slug, models.ETLSchedule.cron)\
+        .outerjoin(models.ETLSchedule, models.ETLJob.schedule_id == models.ETLSchedule.id)\
+        .filter(models.ETLJob.id == job_id)\
+        .first()
+        
+    if not result:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    
+    job, slug, cron = result
+    job_data = schemas.Job.model_validate(job)
+    # Coalesce logic: Custom Cron > Central Schedule > Manual
+    if job.cron_schedule:
+        job_data.schedule = f"Custom: {job.cron_schedule}"
+    elif slug:
+        job_data.schedule = f"{slug} ({cron})"
+    else:
+        job_data.schedule = "Manual"
+        
+    return job_data
+
+@router.put("/{job_id}", response_model=schemas.Job)
+def update_pipeline(job_id: int, job_update: schemas.JobUpdate, db: Session = Depends(get_db)):
+    """Update pipeline"""
+    db_job = db.query(models.ETLJob).filter(models.ETLJob.id == job_id).first()
+    if not db_job:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    
+    for key, value in job_update.model_dump(exclude_unset=True).items():
+        setattr(db_job, key, value)
+    
+    db_job.updt_by_nm = "DASHBOARD"
+    db_job.updt_dttm = datetime.utcnow()
+    db.commit()
+    
+    return get_pipeline(db_job.id, db)
+
+@router.delete("/{job_id}")
+def delete_pipeline(job_id: int, db: Session = Depends(get_db)):
+    """Delete pipeline"""
+    db_job = db.query(models.ETLJob).filter(models.ETLJob.id == job_id).first()
+    if not db_job:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    
+    db.delete(db_job)
+    db.commit()
+    return {"message": "Pipeline deleted successfully"}
+
+# Parameter management endpoints
+@router.get("/{job_id}/params", response_model=schemas.JobParameter)
+def get_pipeline_params(job_id: int, db: Session = Depends(get_db)):
+    """Get pipeline parameters"""
+    params = db.query(models.ETLJobParameter).filter(models.ETLJobParameter.etl_job_id == job_id).first()
+    if not params:
+        raise HTTPException(status_code=404, detail="Parameters not found for this pipeline")
+    return params
+
+@router.put("/{job_id}/params", response_model=schemas.JobParameter)
+def update_pipeline_params(job_id: int, params: Dict[str, Any], db: Session = Depends(get_db)):
+    """
+    Update pipeline parameters with JSON Schema validation.
+    Parameters are validated against the schema registered for this job.
+    """
+    # Get the job
+    job = db.query(models.ETLJob).filter(models.ETLJob.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    
+    # Get the schema for validation
+    schema = db.query(models.ETLParamsSchema).filter(models.ETLParamsSchema.job_nm == job.job_nm).first()
+    if schema:
+        # Validate params against schema
+        validate_params_against_schema(params, schema.json_schema)
+    
+    # Update or create parameters
+    db_params = db.query(models.ETLJobParameter).filter(models.ETLJobParameter.etl_job_id == job_id).first()
+    if not db_params:
+        db_params = models.ETLJobParameter(
+            etl_job_id=job_id,
+            config_json=params,
+            creat_by_nm="DASHBOARD"
+        )
+        db.add(db_params)
+    else:
+        db_params.config_json = params
+        db_params.updt_by_nm = "DASHBOARD"
+        db_params.updt_dttm = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(db_params)
+    return db_params
+
+@router.get("/{job_id}/schema", response_model=schemas.ParamsSchema)
+def get_pipeline_schema(job_id: int, db: Session = Depends(get_db)):
+    """
+    Get the JSON Schema for this pipeline's parameters.
+    Used by the frontend to dynamically generate the parameter form.
+    """
+    job = db.query(models.ETLJob).filter(models.ETLJob.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    
+    schema = db.query(models.ETLParamsSchema).filter(models.ETLParamsSchema.job_nm == job.job_nm).first()
+    if not schema:
+        raise HTTPException(status_code=404, detail="Schema not found for this pipeline")
+    
+    return schema

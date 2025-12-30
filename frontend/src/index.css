@@ -1,0 +1,317 @@
+:root {
+    color-scheme: dark;
+    /* Colors */
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-tertiary: #334155;
+
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-tertiary: #64748b;
+
+    --accent-primary: #6366f1;
+    --accent-secondary: #8b5cf6;
+
+    --success: #10b981;
+    --warning: #f59e0b;
+    --error: #ef4444;
+
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-bg: rgba(255, 255, 255, 0.05);
+
+    /* Spacing */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+button {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+/* Layout */
+.layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    min-height: 100vh;
+}
+
+.sidebar {
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--glass-border);
+    padding: 2rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.main-content {
+    padding: 2rem 3rem;
+    overflow-y: auto;
+}
+
+/* Glass morphism */
+.glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+}
+
+/* Buttons */
+.btn-primary {
+    background: var(--accent-primary);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover {
+    background: #5558e3;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-secondary {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius-md);
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Form elements */
+input,
+select,
+textarea {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-md);
+    font-family: inherit;
+    font-size: 0.95rem;
+    width: 100%;
+    outline: none;
+    transition: all 0.2s;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+option {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 1rem;
+}
+
+.dark-select {
+    background-color: var(--bg-secondary) !important;
+    cursor: pointer;
+}
+
+.dark-select option {
+    background-color: var(--bg-secondary);
+    padding: 1rem;
+}
+
+/* Table */
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    text-align: left;
+    padding: 1rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+td {
+    padding: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+tr:hover {
+    background: var(--glass-bg);
+}
+
+/* Status badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.status-success {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success);
+}
+
+.status-error {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--error);
+}
+
+.status-running {
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--accent-primary);
+}
+
+/* Dynamic Forms (RJSF) Overrides */
+.dynamic-form fieldset {
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-width: 0 !important;
+}
+
+.dynamic-form legend {
+    display: none !important;
+}
+
+.dynamic-form label {
+    display: block !important;
+    margin-bottom: 0.5rem !important;
+    font-size: 0.9rem !important;
+    color: var(--text-secondary) !important;
+    font-weight: 500 !important;
+}
+
+.dynamic-form .form-group {
+    margin-bottom: 1.5rem !important;
+}
+
+.dynamic-form .field-description {
+    font-size: 0.8rem !important;
+    color: var(--text-tertiary) !important;
+    margin-top: 0.25rem !important;
+}
+
+.dynamic-form input,
+.dynamic-form select,
+.dynamic-form textarea {
+    background: var(--bg-secondary) !important;
+}
+
+.dynamic-form .panel-danger {
+    border-color: var(--error) !important;
+    color: var(--error) !important;
+    padding: 1rem !important;
+    margin-bottom: 1rem !important;
+    background: rgba(239, 68, 68, 0.1) !important;
+    border-radius: var(--radius-md) !important;
+}
+
+/* Diagnostic / Terminal Styles */
+.terminal {
+    background: #000000;
+    color: #f1f5f9;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    padding: 1.5rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--glass-border);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.log-step {
+    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.log-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+}
+
+.log-message {
+    padding-left: 1.5rem;
+    color: var(--text-secondary);
+}
+
+.log-time {
+    color: var(--text-tertiary);
+    font-size: 0.75rem;
+    margin-left: auto;
+}
+
+.log-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.bg-success {
+    background-color: var(--success);
+}
+
+.bg-error {
+    background-color: var(--error);
+}
+
+.bg-running {
+    background-color: var(--accent-primary);
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
