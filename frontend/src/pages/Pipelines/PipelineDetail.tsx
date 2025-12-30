@@ -3,9 +3,12 @@ import { useParams } from 'react-router-dom';
 import { api } from '../../services/api';
 import { DynamicFormRenderer } from '../../components/DynamicFormRenderer';
 import { Activity, Database, Calendar, FileJson } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const PipelineDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { hasPermission } = useAuth();
+  const canViewConfig = hasPermission('CAN_VIEW_CONFIG');
   const [pipeline, setPipeline] = useState<any>(null);
   const [schema, setSchema] = useState<any>(null);
   const [runs, setRuns] = useState<any[]>([]);
@@ -129,9 +132,11 @@ export const PipelineDetail: React.FC = () => {
                     borderRadius: 'var(--radius-md)',
                     overflow: 'auto',
                     fontSize: '0.85rem',
-                    color: '#818cf8'
+                    color: '#818cf8',
+                    fontStyle: canViewConfig ? 'normal' : 'italic',
+                    opacity: canViewConfig ? 1 : 0.7
                   }}>
-                    {JSON.stringify(schema.json_schema, null, 2)}
+                    {canViewConfig ? JSON.stringify(schema.json_schema, null, 2) : '[Redacted: Requires Elevated Configuration Access]'}
                   </pre>
                 </div>
               </div>

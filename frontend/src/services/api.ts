@@ -123,6 +123,12 @@ export const api = {
         registerCodeLocation: (data: any) => apiInstance.post(`${API_BASE}/management/code-locations`, data),
     },
 
+    // Reports
+    reports: {
+        accessMatrix: () => apiInstance.get(`${API_BASE}/reports/access-matrix`),
+        exportAccessMatrix: () => `http://localhost:8000${API_BASE}/reports/access-matrix/csv`,
+    },
+
     healthCheck: () => apiInstance.get(`${API_BASE}/`),
 };
 

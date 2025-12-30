@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from . import connections, schedules, schemas_router, pipelines, status, metadata, connections_metadata, auth, users, management
+from . import connections, schedules, schemas_router, pipelines, status, metadata, connections_metadata, auth, users, management, reports
 
 api_router = APIRouter()
 
@@ -16,6 +16,7 @@ api_router.include_router(schemas_router.router, prefix="/schemas", tags=["Schem
 api_router.include_router(pipelines.router, prefix="/pipelines", tags=["Pipelines"])
 api_router.include_router(status.router, prefix="/status", tags=["Status"])
 api_router.include_router(management.router, prefix="/management", tags=["Management"])
+api_router.include_router(reports.router, prefix="/reports", tags=["Reports"])
 
 @api_router.get("/")
 def health_check():

@@ -142,36 +142,37 @@ export const UserManagement: React.FC = () => {
         }
     };
 
-    const exportToCSV = () => {
-        const headers = ['Name', 'Username', 'Email', 'Global Role', ...teams.map(t => t.team_nm)];
-        const rows = users.map(u => {
-            const teamRoles = teams.map(t => {
-                const membership = u.team_memberships?.find((tm: any) => tm.team_id === t.id);
-                return membership ? membership.role?.role_nm.replace('DPE_', '') : '—';
-            });
-            return [
-                u.full_nm,
-                u.username,
-                u.email || '',
-                u.role?.role_nm.replace('DPE_', '') || '',
-                ...teamRoles
-            ];
-        });
+    const exportToAccessMatrix = async () => {
+        try {
+            const response = await api.reports.accessMatrix();
+            const data = response.data;
 
-        const csvContent = [
-            headers.join(','),
-            ...rows.map(r => r.map(cell => `"${cell}"`).join(','))
-        ].join('\n');
+            const headers = ["Employee", "Username", "Email", "Scope Type", "Scope Name", "Assigned Role", "Effective Level"];
+            const csvContent = [
+                headers.join(','),
+                ...data.map((r: any) => [
+                    `"${r.Employee}"`,
+                    `"${r.Username}"`,
+                    `"${r.Email}"`,
+                    `"${r['Scope Type']}"`,
+                    `"${r['Scope Name']}"`,
+                    `"${r['Assigned Role']}"`,
+                    `"${r['Effective Level']}"`
+                ].join(','))
+            ].join('\n');
 
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', `access_matrix_${new Date().toISOString().split('T')[0]}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `access_matrix_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (err) {
+            console.error('Export failed', err);
+            alert('Failed to generate access matrix report');
+        }
     };
     const handleBulkDeactivate = async () => {
         if (selectedUserIds.length === 0 || !window.confirm(`Deactivate ${selectedUserIds.length} users?`)) return;
@@ -243,8 +244,8 @@ export const UserManagement: React.FC = () => {
                 </div>
                 <div style={{ display: 'flex', gap: '1rem' }}>
                     {activeTab === 'users' && (
-                        <button className="btn-secondary" onClick={exportToCSV} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <Download size={18} /> Export CSV
+                        <button className="btn-secondary" onClick={exportToAccessMatrix} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <Download size={18} /> Export Access Matrix
                         </button>
                     )}
                     <button className="btn-primary" onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

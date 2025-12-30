@@ -9,6 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 export const ConnectionList: React.FC = () => {
     const { hasPermission, currentTeamId } = useAuth();
     const canManage = hasPermission('CAN_MANAGE_CONNECTIONS');
+    const canViewConfig = hasPermission('CAN_VIEW_CONFIG');
     const [metadata, setMetadata] = useState<TableMetadata | null>(null);
     const [connections, setConnections] = useState<any[]>([]);
     const [connTypes, setConnTypes] = useState<any[]>([]);
@@ -389,14 +390,16 @@ export const ConnectionList: React.FC = () => {
                                     overflowX: 'auto',
                                     background: 'rgba(0,0,0,0.2)',
                                     color: '#818cf8',
-                                    border: '1px solid var(--glass-border)'
+                                    border: '1px solid var(--glass-border)',
+                                    fontStyle: canViewConfig ? 'normal' : 'italic',
+                                    opacity: canViewConfig ? 1 : 0.7
                                 }}>
-                                    {JSON.stringify(viewingConn.config_json, (key, value) => {
+                                    {canViewConfig ? JSON.stringify(viewingConn.config_json, (key, value) => {
                                         if (['password', 'key', 'secret', 'token'].some(k => key.toLowerCase().includes(k))) {
                                             return '••••••••';
                                         }
                                         return value;
-                                    }, 2)}
+                                    }, 2) : '[Redacted: Requires Elevated Configuration Access]'}
                                 </pre>
                             </div>
 

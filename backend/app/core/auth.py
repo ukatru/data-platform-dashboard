@@ -42,6 +42,7 @@ class Permission:
     CAN_MANAGE_CONNECTIONS = "CAN_MANAGE_CONNECTIONS"
     CAN_MANAGE_TEAMS = "CAN_MANAGE_TEAMS"
     CAN_MANAGE_USERS = "CAN_MANAGE_USERS"
+    CAN_VIEW_CONFIG = "CAN_VIEW_CONFIG"
     PLATFORM_ADMIN = "PLATFORM_ADMIN"
 
 def get_role_permissions(role_nm: str) -> set[str]:
@@ -58,11 +59,18 @@ def get_role_permissions(role_nm: str) -> set[str]:
     if "_LEAD" in role_nm:
         return {
             Permission.CAN_VIEW_LOGS, Permission.CAN_EDIT_PIPELINES,
-            Permission.CAN_MANAGE_CONNECTIONS, Permission.CAN_MANAGE_USERS
+            Permission.CAN_MANAGE_CONNECTIONS, Permission.CAN_MANAGE_USERS,
+            Permission.CAN_VIEW_CONFIG
+        }
+    
+    if role_nm == "PLATFORM_VIEWER":
+        return {
+            Permission.CAN_VIEW_LOGS
         }
     if "_RW" in role_nm or role_nm == "DPE_DEVELOPER":
         return {
-            Permission.CAN_VIEW_LOGS, Permission.CAN_EDIT_PIPELINES
+            Permission.CAN_VIEW_LOGS, Permission.CAN_EDIT_PIPELINES,
+            Permission.CAN_VIEW_CONFIG
         }
     if "_READER" in role_nm or role_nm == "DPE_DATA_ANALYST":
         return {
