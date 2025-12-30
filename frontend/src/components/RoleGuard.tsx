@@ -16,7 +16,8 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({ children, requiredRole, fa
         'DPE_PLATFORM_ADMIN': 3
     };
 
-    const userLevel = user ? roleHierarchy[user.role_nm] : 0;
+    const userRole = user?.role?.role_nm || user?.role_nm; // Support both flat and nested for migration
+    const userLevel = (userRole && roleHierarchy[userRole as RoleName]) || 0;
     const requiredLevel = roleHierarchy[requiredRole];
 
     if (userLevel < requiredLevel) {

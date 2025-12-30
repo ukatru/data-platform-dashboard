@@ -7,7 +7,11 @@ export interface User {
     username: string;
     full_nm: string;
     email?: string;
-    role_nm: RoleName;
+    role?: {
+        id: number;
+        role_nm: RoleName;
+    };
+    role_nm?: RoleName; // Keep for backward compatibility/quick access
     actv_ind: boolean;
 }
 
@@ -62,9 +66,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, [logout]);
 
     const isAuthenticated = !!token;
-    const isAdmin = user?.role_nm === 'DPE_PLATFORM_ADMIN';
-    const isDeveloper = isAdmin || user?.role_nm === 'DPE_DEVELOPER';
-    const isAnalyst = isDeveloper || user?.role_nm === 'DPE_DATA_ANALYST';
+    const effectiveRole = user?.role?.role_nm || user?.role_nm;
+    const isAdmin = effectiveRole === 'DPE_PLATFORM_ADMIN';
+    const isDeveloper = isAdmin || effectiveRole === 'DPE_DEVELOPER';
+    const isAnalyst = isDeveloper || effectiveRole === 'DPE_DATA_ANALYST';
 
     return (
         <AuthContext.Provider value={{

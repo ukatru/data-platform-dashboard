@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { GenericSchemaForm } from './GenericSchemaForm';
+import { useAuth } from '../contexts/AuthContext';
 
 interface DynamicFormRendererProps {
     pipelineId: number;
@@ -14,6 +15,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     pipelineId,
     onSubmit
 }) => {
+    const { isDeveloper } = useAuth();
     const [schema, setSchema] = useState<any>(null);
     const [formData, setFormData] = useState<any>({});
     const [loading, setLoading] = useState(true);
@@ -83,7 +85,8 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
             schema={schema}
             formData={formData}
             onSubmit={handleSubmit}
-            onChange={(data) => setFormData(data)}
+            onChange={(data: any) => setFormData(data)}
+            readOnly={!isDeveloper}
         />
     );
 };

@@ -7,3 +7,4 @@ export * from './Connections/ConnectionList';
 export * from './Schedules/ScheduleList';
 export * from './Schemas/SchemaList';
 export * from './Status/StatusDashboard';
+export * from './Profile';

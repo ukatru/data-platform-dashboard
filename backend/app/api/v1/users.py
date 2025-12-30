@@ -70,3 +70,16 @@ def list_roles(
     current_user: models.ETLUser = Depends(auth.require_analyst)
 ):
     return db.query(models.ETLRole).filter(models.ETLRole.actv_ind == True).all()
+
+@router.post("/me/password")
+def change_password(
+    pwd_in: schemas.UserPasswordChange,
+    db: Session = Depends(get_db),
+    current_user: models.ETLUser = Depends(auth.get_current_user)
+):
+    if not auth.verify_password(pwd_in.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Incorrect current password")
+        
+    current_user.hashed_password = auth.get_password_hash(pwd_in.new_password)
+    db.commit()
+    return {"message": "Password updated successfully"}

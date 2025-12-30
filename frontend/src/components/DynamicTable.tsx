@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Edit, Trash2, Copy, Play } from 'lucide-react';
 import { ColumnMetadata } from '../services/api';
-import { RoleName } from '../contexts/AuthContext';
+import { RoleName, useAuth } from '../contexts/AuthContext';
 import { RoleGuard } from './RoleGuard';
 
 interface DynamicTableProps {
@@ -34,7 +34,28 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
     deleteRole,
     testRole,
 }) => {
+    const { user } = useAuth();
     const visibleColumns = metadata.filter(col => col.visible);
+
+    const roleHierarchy: Record<RoleName, number> = {
+        'DPE_DATA_ANALYST': 1,
+        'DPE_DEVELOPER': 2,
+        'DPE_PLATFORM_ADMIN': 3
+    };
+
+    const userRole = user?.role?.role_nm || user?.role_nm;
+    const userLevel = (userRole && roleHierarchy[userRole as RoleName]) || 0;
+
+    const hasActionPermission = (requiredRole?: RoleName) => {
+        if (!requiredRole) return true;
+        return userLevel >= roleHierarchy[requiredRole];
+    };
+
+    const isActionsVisible = (
+        (onEdit && hasActionPermission(editRole || 'DPE_DEVELOPER')) ||
+        (onDelete && hasActionPermission(deleteRole || 'DPE_PLATFORM_ADMIN')) ||
+        (onTest && hasActionPermission(testRole || 'DPE_DATA_ANALYST'))
+    );
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
@@ -162,7 +183,7 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
                                 {col.label}
                             </th>
                         ))}
-                        {(onEdit || onDelete || onTest) && <th style={{ width: '120px' }}>Actions</th>}
+                        {isActionsVisible && <th style={{ width: '120px' }}>Actions</th>}
                     </tr>
                 </thead>
                 <tbody>
@@ -173,7 +194,7 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
                                     {renderCell(row, col)}
                                 </td>
                             ))}
-                            {(onEdit || onDelete || onTest) && (
+                            {isActionsVisible && (
                                 <td>
                                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                                         {onTest && (

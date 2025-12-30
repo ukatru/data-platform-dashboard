@@ -72,7 +72,7 @@ export const UserManagement: React.FC = () => {
             password: '',
             full_nm: user.full_nm,
             email: user.email || '',
-            role_id: user.role_id,
+            role_id: user.role?.id || user.role_id,
             actv_ind: user.actv_ind
         });
         setShowModal(true);
@@ -155,7 +155,7 @@ export const UserManagement: React.FC = () => {
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                         <Shield size={16} color="var(--accent-secondary)" />
                                         <span className="status-badge" style={{ background: 'rgba(129, 140, 248, 0.1)', color: '#818cf8', border: '1px solid rgba(129, 140, 248, 0.2)' }}>
-                                            {u.role_nm.replace('DPE_', '').replace('_', ' ')}
+                                            {(u.role?.role_nm || u.role_nm || 'Guest').replace('DPE_', '').replace('_', ' ')}
                                         </span>
                                     </div>
                                 </td>
@@ -238,7 +238,7 @@ export const UserManagement: React.FC = () => {
                                     onChange={e => setFormData({ ...formData, role_id: parseInt(e.target.value) })}
                                 >
                                     {roles.map(r => (
-                                        <option key={r.id} value={r.id}>{r.role_nm.replace('DPE_', '')}</option>
+                                        <option key={r.id} value={r.id}>{r.role_nm?.replace('DPE_', '') || r.role_nm}</option>
                                     ))}
                                 </select>
                             </div>

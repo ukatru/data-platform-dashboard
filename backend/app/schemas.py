@@ -189,3 +189,7 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: Optional[str] = None
+
+class UserPasswordChange(BaseModel):
+    current_password: str
+    new_password: str

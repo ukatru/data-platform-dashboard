@@ -1,15 +1,18 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import {
+    Dashboard,
+    PipelineList,
+    PipelineDetail,
+    ConnectionList,
+    ScheduleList,
+    SchemaList,
+    StatusDashboard,
+    UserManagement,
+    Login,
+    Profile
+} from './pages';
 import { Sidebar } from './components/Sidebar';
-import { Dashboard } from './pages/Dashboard';
-import { PipelineList } from './pages/Pipelines/PipelineList';
-import { PipelineDetail } from './pages/Pipelines/PipelineDetail';
-import { ConnectionList } from './pages/Connections/ConnectionList';
-import { ScheduleList } from './pages/Schedules/ScheduleList';
-import { SchemaList } from './pages/Schemas/SchemaList';
-import { StatusDashboard } from './pages/Status/StatusDashboard';
-import { UserManagement } from './pages/Users';
-import { Login } from './pages/Login';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import './index.css';
@@ -29,7 +32,31 @@ function AppRoutes() {
     const { loading } = useAuth();
 
     if (loading) {
-        return <div className="loading-container">Initializing...</div>;
+        return (
+            <div style={{
+                height: '100vh',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'var(--bg-primary)',
+                color: 'var(--text-secondary)',
+                gap: '1rem'
+            }}>
+                <div style={{
+                    width: '40px',
+                    height: '40px',
+                    border: '3px solid rgba(99, 102, 241, 0.1)',
+                    borderTopColor: 'var(--accent-primary)',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                }} />
+                Initializing Platform...
+                <style>{`
+                    @keyframes spin { to { transform: rotate(360deg); } }
+                `}</style>
+            </div>
+        );
     }
 
     return (
@@ -81,6 +108,12 @@ function AppRoutes() {
             <Route path="/admin" element={
                 <ProtectedRoute requiredRole="DPE_PLATFORM_ADMIN">
                     <Layout><UserManagement /></Layout>
+                </ProtectedRoute>
+            } />
+
+            <Route path="/profile" element={
+                <ProtectedRoute>
+                    <Layout><Profile /></Layout>
                 </ProtectedRoute>
             } />
 

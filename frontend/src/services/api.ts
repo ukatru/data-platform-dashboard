@@ -32,16 +32,17 @@ apiInstance.interceptors.response.use(
 export const api = {
     // Auth
     auth: {
-        login: (formData: FormData) => apiInstance.post('/auth/login', formData),
-        me: () => apiInstance.get('/auth/me'),
+        login: (formData: FormData) => apiInstance.post(`${API_BASE}/auth/login`, formData),
+        me: () => apiInstance.get(`${API_BASE}/auth/me`),
     },
 
     // Users (Admin Only)
     users: {
-        list: () => apiInstance.get('/users/'),
-        create: (data: any) => apiInstance.post('/users/', data),
-        update: (id: number, data: any) => apiInstance.put(`/users/${id}`, data),
-        listRoles: () => apiInstance.get('/users/roles'),
+        list: () => apiInstance.get(`${API_BASE}/users/`),
+        create: (data: any) => apiInstance.post(`${API_BASE}/users/`, data),
+        update: (id: number, data: any) => apiInstance.put(`${API_BASE}/users/${id}`, data),
+        listRoles: () => apiInstance.get(`${API_BASE}/users/roles`),
+        changePassword: (data: any) => apiInstance.post(`${API_BASE}/users/me/password`, data),
     },
 
     // Metadata
@@ -88,7 +89,7 @@ export const api = {
     pipelines: {
         list: () => apiInstance.get(`${API_BASE}/pipelines/`),
         get: (id: number) => apiInstance.get(`${API_BASE}/pipelines/${id}`),
-        create: (data: any) => apiInstance.post(`${API_BASE}/pipelines/`),
+        create: (data: any) => apiInstance.post(`${API_BASE}/pipelines/`, data),
         update: (id: number, data: any) => apiInstance.put(`${API_BASE}/pipelines/${id}`, data),
         delete: (id: number) => apiInstance.delete(`${API_BASE}/pipelines/${id}`),
         getParams: (id: number) => apiInstance.get(`${API_BASE}/pipelines/${id}/params`),

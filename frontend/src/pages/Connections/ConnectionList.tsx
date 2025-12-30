@@ -4,8 +4,10 @@ import { DynamicTable } from '../../components/DynamicTable';
 import { GenericSchemaForm } from '../../components/GenericSchemaForm';
 import { Plus, X, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { RoleGuard } from '../../components/RoleGuard';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const ConnectionList: React.FC = () => {
+    const { isAdmin } = useAuth();
     const [metadata, setMetadata] = useState<TableMetadata | null>(null);
     const [connections, setConnections] = useState<any[]>([]);
     const [connTypes, setConnTypes] = useState<any[]>([]);
@@ -259,6 +261,7 @@ export const ConnectionList: React.FC = () => {
                                     value={formData.conn_type || ""}
                                     onChange={(e) => handleTypeChange(e.target.value)}
                                     required
+                                    disabled={!isAdmin}
                                     className="dark-select"
                                 >
                                     <option value="">Select Type...</option>
@@ -276,22 +279,35 @@ export const ConnectionList: React.FC = () => {
                                 schema={selectedTypeSchema}
                                 formData={formData.config_json}
                                 onSubmit={handleSubmit}
+                                readOnly={!isAdmin}
                                 customActions={(configData) => (
                                     <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
                                         <button
                                             type="button"
                                             onClick={() => handleStatelessTest(configData)}
-                                            disabled={isTesting}
+                                            disabled={isTesting || !isAdmin}
                                             className="btn-secondary"
-                                            style={{ flex: 1, borderColor: isVerified ? 'var(--success)' : 'var(--accent-primary)', color: isVerified ? 'var(--success)' : 'var(--accent-primary)' }}
+                                            style={{
+                                                flex: 1,
+                                                borderColor: isVerified ? 'var(--success)' : 'var(--accent-primary)',
+                                                color: isVerified ? 'var(--success)' : 'var(--accent-primary)',
+                                                display: isAdmin || isVerified ? 'flex' : 'none',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                            }}
                                         >
                                             {isTesting ? 'Testing...' : isVerified ? 'Verified ✓' : 'Test Connection'}
                                         </button>
                                         <button
                                             type="submit"
-                                            disabled={isTesting || !isVerified}
+                                            disabled={isTesting || !isVerified || !isAdmin}
                                             className="btn-primary"
-                                            style={{ flex: 1, opacity: (!isVerified && !isTesting) ? 0.5 : 1, cursor: (!isVerified && !isTesting) ? 'not-allowed' : 'pointer' }}
+                                            style={{
+                                                flex: 1,
+                                                opacity: (!isVerified && !isTesting) || !isAdmin ? 0.5 : 1,
+                                                cursor: (!isVerified && !isTesting) || !isAdmin ? 'not-allowed' : 'pointer',
+                                                display: isAdmin ? 'block' : 'none'
+                                            }}
                                         >
                                             {editingConn ? 'Update' : 'Register'}
                                         </button>

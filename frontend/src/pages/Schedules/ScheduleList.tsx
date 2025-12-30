@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api, TableMetadata } from '../../services/api';
 import { DynamicTable } from '../../components/DynamicTable';
 import { Plus, X } from 'lucide-react';
+import { RoleGuard } from '../../components/RoleGuard';
 
 export const ScheduleList: React.FC = () => {
     const [metadata, setMetadata] = useState<TableMetadata | null>(null);
@@ -93,9 +94,11 @@ export const ScheduleList: React.FC = () => {
                     <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Schedules</h1>
                     <p style={{ color: 'var(--text-secondary)' }}>Manage cron-based execution schedules</p>
                 </div>
-                <button className="btn-primary" onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Plus size={20} /> New Schedule
-                </button>
+                <RoleGuard requiredRole="DPE_DEVELOPER">
+                    <button className="btn-primary" onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Plus size={20} /> New Schedule
+                    </button>
+                </RoleGuard>
             </div>
 
             <DynamicTable
@@ -104,6 +107,8 @@ export const ScheduleList: React.FC = () => {
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 primaryKey={metadata.primary_key}
+                editRole="DPE_DEVELOPER"
+                deleteRole="DPE_DEVELOPER"
             />
 
             {showModal && (

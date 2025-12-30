@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api, TableMetadata } from '../../services/api';
-import { DynamicTable } from '../../components/DynamicTable';
 import { Plus, X, Eye } from 'lucide-react';
+import { RoleGuard } from '../../components/RoleGuard';
 
 export const SchemaList: React.FC = () => {
     const [metadata, setMetadata] = useState<TableMetadata | null>(null);
@@ -92,9 +92,11 @@ export const SchemaList: React.FC = () => {
                     <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Schemas</h1>
                     <p style={{ color: 'var(--text-secondary)' }}>Manage JSON Schema registry for parameter validation</p>
                 </div>
-                <button className="btn-primary" onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Plus size={20} /> Register Schema
-                </button>
+                <RoleGuard requiredRole="DPE_DEVELOPER">
+                    <button className="btn-primary" onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Plus size={20} /> Register Schema
+                    </button>
+                </RoleGuard>
             </div>
 
             <div className="glass" style={{ overflowX: 'auto' }}>

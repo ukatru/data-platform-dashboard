@@ -92,13 +92,17 @@ export const Sidebar: React.FC = () => {
                     alignItems: 'center',
                     gap: '0.75rem'
                 }}>
-                    <UserCircle size={32} color="var(--text-secondary)" />
+                    <Link to="/profile" title="Profile Settings" style={{ color: 'inherit', display: 'flex' }}>
+                        <UserCircle size={32} color={isActive('/profile') ? 'var(--accent-primary)' : 'var(--text-secondary)'} />
+                    </Link>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ color: 'white', fontSize: '0.875rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {user?.full_nm}
-                        </div>
+                        <Link to="/profile" style={{ textDecoration: 'none', color: 'inherit' }}>
+                            <div style={{ color: 'white', fontSize: '0.875rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {user?.full_nm || 'Loading...'}
+                            </div>
+                        </Link>
                         <div style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>
-                            {user?.role_nm.replace('DPE_', '')}
+                            {(user?.role?.role_nm || user?.role_nm || 'Guest').replace('DPE_', '')}
                         </div>
                     </div>
                     <button

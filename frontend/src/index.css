@@ -51,6 +51,11 @@ button {
     font-family: inherit;
 }
 
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* Layout */
 .layout {
     display: grid;

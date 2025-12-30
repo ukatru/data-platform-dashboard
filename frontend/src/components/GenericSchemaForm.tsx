@@ -10,6 +10,7 @@ interface GenericSchemaFormProps {
     onChange?: (data: any) => void;
     children?: React.ReactNode;
     customActions?: (formData: any) => React.ReactNode;
+    readOnly?: boolean;
 }
 
 /**
@@ -21,7 +22,8 @@ export const GenericSchemaForm: React.FC<GenericSchemaFormProps> = ({
     onSubmit,
     onChange,
     children,
-    customActions
+    customActions,
+    readOnly = false
 }) => {
     const [localFormData, setLocalFormData] = React.useState(initialFormData);
 
@@ -43,13 +45,18 @@ export const GenericSchemaForm: React.FC<GenericSchemaFormProps> = ({
                 validator={validator}
                 onSubmit={({ formData }) => onSubmit(formData)}
                 onChange={({ formData }) => handleChange(formData)}
+                readonly={readOnly}
             >
-                {children || customActions?.(localFormData) || (
-                    <div style={{ marginTop: '2rem' }}>
-                        <button type="submit" className="btn-primary" style={{ width: '100%' }}>
-                            Save Configuration
-                        </button>
-                    </div>
+                {readOnly ? (
+                    <div />
+                ) : (
+                    children || customActions?.(localFormData) || (
+                        <div style={{ marginTop: '2rem' }}>
+                            <button type="submit" className="btn-primary" style={{ width: '100%' }}>
+                                Save Configuration
+                            </button>
+                        </div>
+                    )
                 )}
             </Form>
         </div>
