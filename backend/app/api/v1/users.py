@@ -11,16 +11,26 @@ router = APIRouter()
 @router.get("/", response_model=List[schemas.User])
 def list_users(
     db: Session = Depends(get_db),
+    tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context),
     current_user: models.ETLUser = Depends(auth.require_admin)
 ):
-    return db.query(models.ETLUser).all()
+    query = db.query(models.ETLUser)
+    if tenant_ctx.org_id is not None:
+        query = query.filter(models.ETLUser.org_id == tenant_ctx.org_id)
+    return query.all()
 
 @router.post("/", response_model=schemas.User)
 def create_user(
     user_in: schemas.UserCreate,
     db: Session = Depends(get_db),
+    tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context),
     current_user: models.ETLUser = Depends(auth.require_admin)
 ):
+    # Enforce Org ID from context if not System Admin
+    org_id = user_in.org_id
+    if tenant_ctx.org_id is not None:
+        org_id = tenant_ctx.org_id # Force to user's org
+
     # Check if user exists
     existing = db.query(models.ETLUser).filter(models.ETLUser.username == user_in.username).first()
     if existing:
@@ -32,6 +42,7 @@ def create_user(
         full_nm=user_in.full_nm,
         email=user_in.email,
         role_id=user_in.role_id,
+        org_id=org_id,
         actv_ind=user_in.actv_ind,
         creat_by_nm=current_user.username
     )
@@ -47,9 +58,15 @@ def update_user(
     db: Session = Depends(get_db),
     current_user: models.ETLUser = Depends(auth.require_admin)
 ):
-    db_user = db.query(models.ETLUser).filter(models.ETLUser.id == user_id).first()
+    db_user = db.query(models.ETLUser).filter(models.ETLUser.id == user_id)
+    
+    # Enforce Tenant Boundary
+    if current_user.org_id is not None:
+        db_user = db_user.filter(models.ETLUser.org_id == current_user.org_id)
+        
+    db_user = db_user.first()
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="User not found or access denied")
         
     update_data = user_in.model_dump(exclude_unset=True)
     if "password" in update_data:

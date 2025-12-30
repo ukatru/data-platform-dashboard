@@ -48,10 +48,15 @@ class DiagnosticTracer:
 @router.get("/", response_model=List[schemas.Connection])
 def list_connections(
     db: Session = Depends(get_db),
+    tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context),
     current_user: models.ETLUser = Depends(auth.require_analyst)
 ):
-    """List all connections"""
-    conns = db.query(models.ETLConnection).all()
+    """List all connections for the current organization"""
+    query = db.query(models.ETLConnection)
+    if tenant_ctx.org_id is not None:
+        query = query.filter(models.ETLConnection.org_id == tenant_ctx.org_id)
+    
+    conns = query.all()
     for c in conns:
         c.config_json = mask_secrets_on_retrieval(c.config_json)
     return conns
@@ -60,9 +65,13 @@ def list_connections(
 def create_connection(
     conn: schemas.ConnectionCreate, 
     db: Session = Depends(get_db),
-    current_user: models.ETLUser = Depends(auth.require_admin)
+    tenant_ctx: auth.TenantContext = Depends(auth.require_permission(auth.Permission.CAN_MANAGE_CONNECTIONS))
 ):
-    """Create a new connection"""
+    """Create a new connection scoped to the current organization"""
+    # Enforce Org ID from context if not System Admin
+    org_id = conn.org_id
+    if tenant_ctx.org_id is not None:
+        org_id = tenant_ctx.org_id
     # process secrets
     processed_config = process_secrets_on_save(conn.conn_nm, conn.config_json)
     
@@ -70,6 +79,10 @@ def create_connection(
         conn_nm=conn.conn_nm,
         conn_type=conn.conn_type,
         config_json=processed_config,
+        org_id=org_id,
+        team_id=conn.team_id or tenant_ctx.team_id,
+        owner_type=conn.owner_type,
+        owner_id=conn.owner_id,
         creat_by_nm=current_user.username
     )
     db.add(db_conn)
@@ -83,10 +96,15 @@ def create_connection(
 def get_connection(
     conn_id: int, 
     db: Session = Depends(get_db),
+    tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context),
     current_user: models.ETLUser = Depends(auth.require_analyst)
 ):
-    """Get connection by ID"""
-    conn = db.query(models.ETLConnection).filter(models.ETLConnection.id == conn_id).first()
+    """Get connection by ID with tenant check"""
+    query = db.query(models.ETLConnection).filter(models.ETLConnection.id == conn_id)
+    if tenant_ctx.org_id is not None:
+        query = query.filter(models.ETLConnection.org_id == tenant_ctx.org_id)
+        
+    conn = query.first()
     if not conn:
         raise HTTPException(status_code=404, detail="Connection not found")
     # Mask secrets
@@ -98,10 +116,14 @@ def update_connection(
     conn_id: int, 
     conn_update: schemas.ConnectionCreate, 
     db: Session = Depends(get_db),
-    current_user: models.ETLUser = Depends(auth.require_admin)
+    tenant_ctx: auth.TenantContext = Depends(auth.require_permission(auth.Permission.CAN_MANAGE_CONNECTIONS))
 ):
-    """Update connection"""
-    db_conn = db.query(models.ETLConnection).filter(models.ETLConnection.id == conn_id).first()
+    """Update connection with tenant check"""
+    query = db.query(models.ETLConnection).filter(models.ETLConnection.id == conn_id)
+    if tenant_ctx.org_id is not None:
+        query = query.filter(models.ETLConnection.org_id == tenant_ctx.org_id)
+        
+    db_conn = query.first()
     if not db_conn:
         raise HTTPException(status_code=404, detail="Connection not found")
     
@@ -111,7 +133,7 @@ def update_connection(
     db_conn.conn_nm = conn_update.conn_nm
     db_conn.conn_type = conn_update.conn_type
     db_conn.config_json = processed_config
-    db_conn.updt_by_nm = current_user.username
+    db_conn.updt_by_nm = tenant_ctx.user.username
     
     db.commit()
     db.refresh(db_conn)
@@ -271,7 +293,7 @@ def _perform_connection_test(conn_type: str, config: dict, conn_nm: str = "New C
 @router.post("/test-raw")
 def test_raw_connection(
     conn: schemas.ConnectionCreate,
-    current_user: models.ETLUser = Depends(auth.require_developer)
+    tenant_ctx: auth.TenantContext = Depends(auth.require_permission(auth.Permission.CAN_MANAGE_CONNECTIONS))
 ):
     """
     Stateless connection test before saving.
@@ -282,7 +304,7 @@ def test_raw_connection(
 def test_connection(
     conn_id: int, 
     db: Session = Depends(get_db),
-    current_user: models.ETLUser = Depends(auth.require_developer)
+    tenant_ctx: auth.TenantContext = Depends(auth.require_permission(auth.Permission.CAN_MANAGE_CONNECTIONS))
 ):
     """
     Test an existing connection.
@@ -300,10 +322,14 @@ def test_connection(
 def delete_connection(
     conn_id: int, 
     db: Session = Depends(get_db),
-    current_user: models.ETLUser = Depends(auth.require_admin)
+    tenant_ctx: auth.TenantContext = Depends(auth.require_permission(auth.Permission.CAN_MANAGE_CONNECTIONS))
 ):
-    """Delete connection"""
-    db_conn = db.query(models.ETLConnection).filter(models.ETLConnection.id == conn_id).first()
+    """Delete connection with tenant check"""
+    query = db.query(models.ETLConnection).filter(models.ETLConnection.id == conn_id)
+    if tenant_ctx.org_id is not None:
+        query = query.filter(models.ETLConnection.org_id == tenant_ctx.org_id)
+        
+    db_conn = query.first()
     if not db_conn:
         raise HTTPException(status_code=404, detail="Connection not found")
     

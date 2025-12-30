@@ -1,21 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { api, TableMetadata } from '../../services/api';
 import { DynamicTable } from '../../components/DynamicTable';
-import { Search, Filter } from 'lucide-react';
+import { Search } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const StatusDashboard: React.FC = () => {
+    const { currentTeamId } = useAuth();
     const [metadata, setMetadata] = useState<TableMetadata | null>(null);
     const [jobs, setJobs] = useState<any[]>([]);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
+
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchMetadata = async () => {
             try {
                 const res = await api.metadata.status();
                 setMetadata(res.data);
-            } catch (err) {
+            } catch (err: any) {
                 console.error('Failed to fetch metadata', err);
+                if (err.response?.status === 403) {
+                    setError("You do not have permission to view status monitoring.");
+                } else {
+                    setError("Failed to load status metadata.");
+                }
             }
         };
         fetchMetadata();
@@ -26,7 +35,8 @@ export const StatusDashboard: React.FC = () => {
             try {
                 const res = await api.status.jobs({
                     job_nm: search || undefined,
-                    sts_cd: statusFilter || undefined
+                    sts_cd: statusFilter || undefined,
+                    team_id: currentTeamId
                 });
                 setJobs(res.data);
             } catch (err) {
@@ -36,10 +46,22 @@ export const StatusDashboard: React.FC = () => {
         fetchJobs();
         const interval = setInterval(fetchJobs, 5000);
         return () => clearInterval(interval);
-    }, [search, statusFilter]);
+    }, [search, statusFilter, currentTeamId]);
+
+    if (error) {
+        return (
+            <div className="glass" style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                {error}
+            </div>
+        );
+    }
 
     if (!metadata) {
-        return <div>Loading metadata...</div>;
+        return (
+            <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                <div style={{ marginBottom: '1rem', opacity: 0.5 }}>Initializing...</div>
+            </div>
+        );
     }
 
     return (
@@ -77,6 +99,7 @@ export const StatusDashboard: React.FC = () => {
                 metadata={metadata.columns}
                 data={jobs}
                 primaryKey={metadata.primary_key}
+                emptyMessage="No job runs found for this team."
             />
         </div>
     );

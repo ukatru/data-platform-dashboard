@@ -18,6 +18,7 @@ interface DynamicTableProps {
     editRole?: RoleName;
     deleteRole?: RoleName;
     testRole?: RoleName;
+    emptyMessage?: string;
 }
 
 export const DynamicTable: React.FC<DynamicTableProps> = ({
@@ -33,6 +34,7 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
     editRole,
     deleteRole,
     testRole,
+    emptyMessage = "No records found"
 }) => {
     const { user } = useAuth();
     const visibleColumns = metadata.filter(col => col.visible);
@@ -187,7 +189,13 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
                     </tr>
                 </thead>
                 <tbody>
-                    {data.map((row) => (
+                    {data.length === 0 ? (
+                        <tr>
+                            <td colSpan={visibleColumns.length + (isActionsVisible ? 1 : 0)} style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-tertiary)' }}>
+                                {emptyMessage}
+                            </td>
+                        </tr>
+                    ) : data.map((row) => (
                         <tr key={row[primaryKey]}>
                             {visibleColumns.map(col => (
                                 <td key={col.name}>

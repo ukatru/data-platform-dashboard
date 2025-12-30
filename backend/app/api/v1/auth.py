@@ -26,11 +26,30 @@ def login_for_access_token(
         raise HTTPException(status_code=400, detail="Inactive user")
         
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    
+    # Enrich token with organization context
+    token_data = {
+        "sub": user.username,
+        "org_id": user.org_id,
+        "org_code": user.org.org_code if user.org else None
+    }
+    
     access_token = auth.create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+        data=token_data, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/me", response_model=schemas.User)
-def read_users_me(current_user: models.ETLUser = Depends(auth.get_current_user)):
+def read_users_me(
+    current_user: models.ETLUser = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Calculate aggregated permissions
+    all_perms = auth.get_role_permissions(current_user.role.role_nm)
+    for membership in current_user.team_memberships:
+        if membership.actv_ind:
+            all_perms.update(auth.get_role_permissions(membership.role.role_nm))
+    
+    # Attach to user object for Pydantic serialization
+    current_user.permissions = list(all_perms)
     return current_user

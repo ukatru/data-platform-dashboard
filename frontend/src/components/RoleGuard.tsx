@@ -1,27 +1,28 @@
 import React from 'react';
-import { useAuth, RoleName } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 
 interface RoleGuardProps {
     children: React.ReactNode;
-    requiredRole: RoleName;
+    requiredRole?: string;
+    requiredPermission?: string;
     fallback?: React.ReactNode;
 }
 
-export const RoleGuard: React.FC<RoleGuardProps> = ({ children, requiredRole, fallback = null }) => {
-    const { user } = useAuth();
+export const RoleGuard: React.FC<RoleGuardProps> = ({ children, requiredRole, requiredPermission, fallback = null }) => {
+    const { hasPermission } = useAuth();
 
-    const roleHierarchy: Record<RoleName, number> = {
-        'DPE_DATA_ANALYST': 1,
-        'DPE_DEVELOPER': 2,
-        'DPE_PLATFORM_ADMIN': 3
-    };
-
-    const userRole = user?.role?.role_nm || user?.role_nm; // Support both flat and nested for migration
-    const userLevel = (userRole && roleHierarchy[userRole as RoleName]) || 0;
-    const requiredLevel = roleHierarchy[requiredRole];
-
-    if (userLevel < requiredLevel) {
+    if (requiredPermission && !hasPermission(requiredPermission)) {
         return <>{fallback}</>;
+    }
+
+    if (requiredRole) {
+        let perm = 'CAN_VIEW_LOGS';
+        if (requiredRole === 'DPE_PLATFORM_ADMIN') perm = 'PLATFORM_ADMIN';
+        if (requiredRole === 'DPE_DEVELOPER') perm = 'CAN_EDIT_PIPELINES';
+
+        if (!hasPermission(perm)) {
+            return <>{fallback}</>;
+        }
     }
 
     return <>{children}</>;

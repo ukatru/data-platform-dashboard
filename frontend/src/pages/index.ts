@@ -8,3 +8,6 @@ export * from './Schedules/ScheduleList';
 export * from './Schemas/SchemaList';
 export * from './Status/StatusDashboard';
 export * from './Profile';
+export * from './Teams';
+export * from './CodeLocations';
+export * from './Roles';

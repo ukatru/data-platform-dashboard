@@ -7,7 +7,8 @@ import { RoleGuard } from '../../components/RoleGuard';
 import { useAuth } from '../../contexts/AuthContext';
 
 export const ConnectionList: React.FC = () => {
-    const { isAdmin } = useAuth();
+    const { hasPermission } = useAuth();
+    const canManage = hasPermission('CAN_MANAGE_CONNECTIONS');
     const [metadata, setMetadata] = useState<TableMetadata | null>(null);
     const [connections, setConnections] = useState<any[]>([]);
     const [connTypes, setConnTypes] = useState<any[]>([]);
@@ -31,6 +32,8 @@ export const ConnectionList: React.FC = () => {
         setIsVerified(false);
     }, [formData.conn_nm, formData.conn_type, JSON.stringify(formData.config_json)]);
 
+    const [error, setError] = useState<string | null>(null);
+
     useEffect(() => {
         const init = async () => {
             try {
@@ -46,8 +49,13 @@ export const ConnectionList: React.FC = () => {
                 }
                 const typesRes = await api.connections.listTypes();
                 setConnTypes(typesRes.data);
-            } catch (err) {
+            } catch (err: any) {
                 console.error('Initialization failed', err);
+                if (err.response?.status === 403) {
+                    setError("You do not have permission to manage connections.");
+                } else {
+                    setError("Failed to load connection metadata.");
+                }
             }
         };
         init();
@@ -195,8 +203,20 @@ export const ConnectionList: React.FC = () => {
         }
     };
 
+    if (error) {
+        return (
+            <div className="glass" style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                {error}
+            </div>
+        );
+    }
+
     if (!metadata) {
-        return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading connections...</div>;
+        return (
+            <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                <div style={{ marginBottom: '1rem', opacity: 0.5 }}>Initializing...</div>
+            </div>
+        );
     }
 
     return (
@@ -206,7 +226,7 @@ export const ConnectionList: React.FC = () => {
                     <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Connections</h1>
                     <p style={{ color: 'var(--text-secondary)' }}>Manage data source and target configurations</p>
                 </div>
-                <RoleGuard requiredRole="DPE_PLATFORM_ADMIN">
+                <RoleGuard requiredPermission="CAN_MANAGE_CONNECTIONS">
                     <button className="btn-primary" onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Plus size={20} /> New Connection
                     </button>
@@ -225,6 +245,7 @@ export const ConnectionList: React.FC = () => {
                 onLinkClick={handleView}
                 linkColumn="conn_nm"
                 primaryKey={metadata.primary_key}
+                emptyMessage="No connections found for this team."
             />
 
             {/* Test Connection Action added via custom logic if DynamicTable supported it, 
@@ -261,7 +282,7 @@ export const ConnectionList: React.FC = () => {
                                     value={formData.conn_type || ""}
                                     onChange={(e) => handleTypeChange(e.target.value)}
                                     required
-                                    disabled={!isAdmin}
+                                    disabled={!canManage}
                                     className="dark-select"
                                 >
                                     <option value="">Select Type...</option>
@@ -279,19 +300,19 @@ export const ConnectionList: React.FC = () => {
                                 schema={selectedTypeSchema}
                                 formData={formData.config_json}
                                 onSubmit={handleSubmit}
-                                readOnly={!isAdmin}
+                                readOnly={!canManage}
                                 customActions={(configData) => (
                                     <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
                                         <button
                                             type="button"
                                             onClick={() => handleStatelessTest(configData)}
-                                            disabled={isTesting || !isAdmin}
+                                            disabled={isTesting || !canManage}
                                             className="btn-secondary"
                                             style={{
                                                 flex: 1,
                                                 borderColor: isVerified ? 'var(--success)' : 'var(--accent-primary)',
                                                 color: isVerified ? 'var(--success)' : 'var(--accent-primary)',
-                                                display: isAdmin || isVerified ? 'flex' : 'none',
+                                                display: canManage || isVerified ? 'flex' : 'none',
                                                 alignItems: 'center',
                                                 justifyContent: 'center'
                                             }}
@@ -300,13 +321,13 @@ export const ConnectionList: React.FC = () => {
                                         </button>
                                         <button
                                             type="submit"
-                                            disabled={isTesting || !isVerified || !isAdmin}
+                                            disabled={isTesting || !isVerified || !canManage}
                                             className="btn-primary"
                                             style={{
                                                 flex: 1,
                                                 opacity: (!isVerified && !isTesting) || !isAdmin ? 0.5 : 1,
                                                 cursor: (!isVerified && !isTesting) || !isAdmin ? 'not-allowed' : 'pointer',
-                                                display: isAdmin ? 'block' : 'none'
+                                                display: canManage ? 'block' : 'none'
                                             }}
                                         >
                                             {editingConn ? 'Update' : 'Register'}

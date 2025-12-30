@@ -99,10 +99,24 @@ export const api = {
 
     // Status
     status: {
-        summary: () => apiInstance.get(`${API_BASE}/status/summary`),
-        jobs: (filters?: { job_nm?: string; sts_cd?: string; limit?: number }) =>
+        summary: (teamId?: number | null) =>
+            apiInstance.get(`${API_BASE}/status/summary`, { params: { team_id: teamId } }),
+        jobs: (filters?: { job_nm?: string; sts_cd?: string; limit?: number; team_id?: number | null }) =>
             apiInstance.get(`${API_BASE}/status/jobs`, { params: filters }),
         assets: (btchNbr: number) => apiInstance.get(`${API_BASE}/status/jobs/${btchNbr}/assets`),
+    },
+
+    // Management (SaaS Hierarchy)
+    management: {
+        listOrgs: () => apiInstance.get(`${API_BASE}/management/orgs`),
+        getOrg: (id: number) => apiInstance.get(`${API_BASE}/management/orgs/${id}`),
+        listTeams: () => apiInstance.get(`${API_BASE}/management/teams`),
+        createTeam: (data: any) => apiInstance.post(`${API_BASE}/management/teams`, data),
+        listTeamMembers: (teamId: number) => apiInstance.get(`${API_BASE}/management/teams/${teamId}/members`),
+        addTeamMember: (teamId: number, data: any) => apiInstance.post(`${API_BASE}/management/teams/${teamId}/members`, data),
+        removeTeamMember: (teamId: number, userId: number) => apiInstance.delete(`${API_BASE}/management/teams/${teamId}/members/${userId}`),
+        listCodeLocations: () => apiInstance.get(`${API_BASE}/management/code-locations`),
+        registerCodeLocation: (data: any) => apiInstance.post(`${API_BASE}/management/code-locations`, data),
     },
 
     healthCheck: () => apiInstance.get(`${API_BASE}/`),

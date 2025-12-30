@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { Activity, Database, Calendar, Workflow, AlertCircle } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 export const Dashboard: React.FC = () => {
     const [stats, setStats] = useState<any>(null);
+    const { currentTeamId } = useAuth();
 
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const res = await api.status.summary();
+                const res = await api.status.summary(currentTeamId);
                 setStats(res.data);
             } catch (err) {
                 console.error('Failed to fetch stats', err);
@@ -17,7 +19,7 @@ export const Dashboard: React.FC = () => {
         fetchStats();
         const interval = setInterval(fetchStats, 10000);
         return () => clearInterval(interval);
-    }, []);
+    }, [currentTeamId]);
 
     const StatCard = ({ label, value, icon: Icon, color }: any) => (
         <div className="glass" style={{ padding: '2rem' }}>

@@ -9,8 +9,11 @@ import {
     SchemaList,
     StatusDashboard,
     UserManagement,
+    TeamManagement,
+    CodeLocationManagement,
     Login,
-    Profile
+    Profile,
+    RolesManagement
 } from './pages';
 import { Sidebar } from './components/Sidebar';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -70,44 +73,62 @@ function AppRoutes() {
             } />
 
             <Route path="/pipelines" element={
-                <ProtectedRoute requiredRole="DPE_DATA_ANALYST">
+                <ProtectedRoute requiredPermission="CAN_VIEW_LOGS">
                     <Layout><PipelineList /></Layout>
                 </ProtectedRoute>
             } />
 
             <Route path="/pipelines/:id" element={
-                <ProtectedRoute requiredRole="DPE_DATA_ANALYST">
+                <ProtectedRoute requiredPermission="CAN_VIEW_LOGS">
                     <Layout><PipelineDetail /></Layout>
                 </ProtectedRoute>
             } />
 
             <Route path="/connections" element={
-                <ProtectedRoute requiredRole="DPE_DATA_ANALYST">
+                <ProtectedRoute requiredPermission="CAN_MANAGE_CONNECTIONS">
                     <Layout><ConnectionList /></Layout>
                 </ProtectedRoute>
             } />
 
             <Route path="/schedules" element={
-                <ProtectedRoute requiredRole="DPE_DATA_ANALYST">
+                <ProtectedRoute requiredPermission="CAN_VIEW_LOGS">
                     <Layout><ScheduleList /></Layout>
                 </ProtectedRoute>
             } />
 
             <Route path="/schemas" element={
-                <ProtectedRoute requiredRole="DPE_DATA_ANALYST">
+                <ProtectedRoute requiredPermission="CAN_VIEW_LOGS">
                     <Layout><SchemaList /></Layout>
                 </ProtectedRoute>
             } />
 
             <Route path="/status" element={
-                <ProtectedRoute requiredRole="DPE_DATA_ANALYST">
+                <ProtectedRoute requiredPermission="CAN_VIEW_LOGS">
                     <Layout><StatusDashboard /></Layout>
                 </ProtectedRoute>
             } />
 
+            <Route path="/roles" element={
+                <ProtectedRoute requiredPermission="PLATFORM_ADMIN">
+                    <Layout><RolesManagement /></Layout>
+                </ProtectedRoute>
+            } />
+
             <Route path="/admin" element={
-                <ProtectedRoute requiredRole="DPE_PLATFORM_ADMIN">
+                <ProtectedRoute requiredPermission="PLATFORM_ADMIN">
                     <Layout><UserManagement /></Layout>
+                </ProtectedRoute>
+            } />
+
+            <Route path="/teams" element={
+                <ProtectedRoute requiredPermission="CAN_MANAGE_TEAMS">
+                    <Layout><TeamManagement /></Layout>
+                </ProtectedRoute>
+            } />
+
+            <Route path="/code-locations" element={
+                <ProtectedRoute requiredPermission="CAN_EDIT_PIPELINES">
+                    <Layout><CodeLocationManagement /></Layout>
                 </ProtectedRoute>
             } />
 

@@ -28,6 +28,42 @@ class TableMetadata(BaseModel):
     columns: List[ColumnMetadata]
     primary_key: str
 
+# SaaS Hierarchy Schemas
+class OrgBase(BaseModel):
+    org_nm: str
+    org_code: str
+    description: Optional[str] = None
+    actv_ind: bool = True
+
+class OrgCreate(OrgBase):
+    pass
+
+class Org(OrgBase, AuditBase):
+    id: int
+
+class TeamBase(BaseModel):
+    org_id: Optional[int] = None
+    team_nm: str
+    description: Optional[str] = None
+    actv_ind: bool = True
+
+class TeamCreate(TeamBase):
+    pass
+
+class Team(TeamBase, AuditBase):
+    id: int
+
+class CodeLocationBase(BaseModel):
+    team_id: int
+    location_nm: str
+    repo_url: Optional[str] = None
+
+class CodeLocationCreate(CodeLocationBase):
+    pass
+
+class CodeLocation(CodeLocationBase, AuditBase):
+    id: int
+
 # Connection schemas
 class ConnectionBase(BaseModel):
     conn_nm: str
@@ -37,6 +73,12 @@ class ConnectionBase(BaseModel):
     database: Optional[str] = None
     username: Optional[str] = None
     config_json: Dict[str, Any] = {}
+    
+    # Scoping
+    org_id: Optional[int] = None
+    team_id: Optional[int] = None
+    owner_type: Optional[Literal["TEAM", "CODE_LOC"]] = None
+    owner_id: Optional[int] = None
 
 class ConnectionCreate(ConnectionBase):
     password: Optional[str] = None
@@ -85,8 +127,9 @@ class ParamsSchema(ParamsSchemaBase, AuditBase):
 class JobBase(BaseModel):
     job_nm: str
     invok_id: str
-    source_conn_nm: Optional[str] = None
-    target_conn_nm: Optional[str] = None
+    org_id: Optional[int] = None
+    team_id: Optional[int] = None
+    code_location_id: Optional[int] = None
     schedule_id: Optional[int] = None
     cron_schedule: Optional[str] = None
     partition_start_dt: Optional[datetime] = None
@@ -96,8 +139,9 @@ class JobCreate(JobBase):
     pass
 
 class JobUpdate(BaseModel):
-    source_conn_nm: Optional[str] = None
-    target_conn_nm: Optional[str] = None
+    org_id: Optional[int] = None
+    team_id: Optional[int] = None
+    code_location_id: Optional[int] = None
     schedule_id: Optional[int] = None
     cron_schedule: Optional[str] = None
     partition_start_dt: Optional[datetime] = None
@@ -121,8 +165,10 @@ class JobParameter(JobParameterBase, AuditBase):
 # Status schemas (Read-only)
 class JobStatus(BaseModel):
     btch_nbr: int
-    job_nm: str
     run_id: str
+    org_id: Optional[int] = None
+    team_id: Optional[int] = None
+    job_nm: str
     btch_sts_cd: str
     run_mde_txt: Optional[str] = None
     strt_dttm: datetime
@@ -159,8 +205,25 @@ class RoleBase(BaseModel):
 
 class Role(RoleBase):
     id: int
+    team_id: Optional[int] = None
+    
     class Config:
         from_attributes = True
+
+class TeamMemberBase(BaseModel):
+    user_id: int
+    team_id: int
+    role_id: int
+    actv_ind: bool = True
+
+class TeamMemberCreate(TeamMemberBase):
+    pass
+
+class TeamMember(TeamMemberBase, AuditBase):
+    id: int
+    user: Optional['UserBase'] = None
+    team: Optional['TeamBase'] = None
+    role: Optional[Role] = None
 
 class UserBase(BaseModel):
     username: str
@@ -168,6 +231,7 @@ class UserBase(BaseModel):
     email: Optional[str] = None
     actv_ind: bool = True
     role_id: int
+    org_id: Optional[int] = None
 
 class UserCreate(UserBase):
     password: str
@@ -176,12 +240,17 @@ class UserUpdate(BaseModel):
     full_nm: Optional[str] = None
     email: Optional[str] = None
     role_id: Optional[int] = None
+    org_id: Optional[int] = None
     actv_ind: Optional[bool] = None
     password: Optional[str] = None
 
 class User(UserBase, AuditBase):
     id: int
     role: Role
+    org: Optional[Org] = None
+    team_memberships: List[TeamMember] = []
+    default_team_id: Optional[int] = None
+    permissions: List[str] = []
 
 class Token(BaseModel):
     access_token: str

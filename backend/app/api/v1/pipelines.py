@@ -18,12 +18,17 @@ router = APIRouter()
 @router.get("/", response_model=List[schemas.Job])
 def list_pipelines(
     db: Session = Depends(get_db),
+    tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context),
     current_user: models.ETLUser = Depends(auth.require_analyst)
 ):
-    """List all pipelines (jobs)"""
-    results = db.query(models.ETLJob, models.ETLSchedule.slug, models.ETLSchedule.cron)\
-        .outerjoin(models.ETLSchedule, models.ETLJob.schedule_id == models.ETLSchedule.id)\
-        .all()
+    """List all pipelines (jobs) for the current organization"""
+    query = db.query(models.ETLJob, models.ETLSchedule.slug, models.ETLSchedule.cron)\
+        .outerjoin(models.ETLSchedule, models.ETLJob.schedule_id == models.ETLSchedule.id)
+    
+    if tenant_ctx.org_id is not None:
+        query = query.filter(models.ETLJob.org_id == tenant_ctx.org_id)
+        
+    results = query.all()
     
     jobs = []
     for job, slug, cron in results:
@@ -43,8 +48,15 @@ def list_pipelines(
 def create_pipeline(
     job: schemas.JobCreate, 
     db: Session = Depends(get_db),
-    current_user: models.ETLUser = Depends(auth.require_developer)
+    tenant_ctx: auth.TenantContext = Depends(auth.require_permission(auth.Permission.CAN_EDIT_PIPELINES))
 ):
+    """
+    Create a new pipeline scoped to organization and team.
+    """
+    # Enforce Org ID from context if not System Admin
+    org_id = job.org_id
+    if tenant_ctx.org_id is not None:
+        org_id = tenant_ctx.org_id
     """
     Create a new pipeline (composite operation).
     Creates records in:
@@ -52,7 +64,11 @@ def create_pipeline(
     2. etl_job_parameter - initialize with empty config (optional)
     """
     # Create the job
-    db_job = models.ETLJob(**job.model_dump(), creat_by_nm=current_user.username)
+    db_job = models.ETLJob(
+        **job.model_dump(exclude={"org_id"}), 
+        org_id=org_id,
+        creat_by_nm=tenant_ctx.user.username
+    )
     db.add(db_job)
     db.commit()
     db.refresh(db_job)
@@ -61,7 +77,7 @@ def create_pipeline(
     db_params = models.ETLJobParameter(
         etl_job_id=db_job.id,
         config_json={},
-        creat_by_nm=current_user.username
+        creat_by_nm=tenant_ctx.user.username
     )
     db.add(db_params)
     db.commit()
@@ -72,13 +88,18 @@ def create_pipeline(
 def get_pipeline(
     job_id: int, 
     db: Session = Depends(get_db),
+    tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context),
     current_user: models.ETLUser = Depends(auth.require_analyst)
 ):
-    """Get pipeline by ID"""
-    result = db.query(models.ETLJob, models.ETLSchedule.slug, models.ETLSchedule.cron)\
+    """Get pipeline by ID with tenant check"""
+    query = db.query(models.ETLJob, models.ETLSchedule.slug, models.ETLSchedule.cron)\
         .outerjoin(models.ETLSchedule, models.ETLJob.schedule_id == models.ETLSchedule.id)\
-        .filter(models.ETLJob.id == job_id)\
-        .first()
+        .filter(models.ETLJob.id == job_id)
+        
+    if tenant_ctx.org_id is not None:
+        query = query.filter(models.ETLJob.org_id == tenant_ctx.org_id)
+        
+    result = query.first()
         
     if not result:
         raise HTTPException(status_code=404, detail="Pipeline not found")
@@ -100,17 +121,21 @@ def update_pipeline(
     job_id: int, 
     job_update: schemas.JobUpdate, 
     db: Session = Depends(get_db),
-    current_user: models.ETLUser = Depends(auth.require_developer)
+    tenant_ctx: auth.TenantContext = Depends(auth.require_permission(auth.Permission.CAN_EDIT_PIPELINES))
 ):
-    """Update pipeline"""
-    db_job = db.query(models.ETLJob).filter(models.ETLJob.id == job_id).first()
+    """Update pipeline with tenant check"""
+    query = db.query(models.ETLJob).filter(models.ETLJob.id == job_id)
+    if tenant_ctx.org_id is not None:
+        query = query.filter(models.ETLJob.org_id == tenant_ctx.org_id)
+        
+    db_job = query.first()
     if not db_job:
         raise HTTPException(status_code=404, detail="Pipeline not found")
     
     for key, value in job_update.model_dump(exclude_unset=True).items():
         setattr(db_job, key, value)
     
-    db_job.updt_by_nm = current_user.username
+    db_job.updt_by_nm = tenant_ctx.user.username
     db_job.updt_dttm = datetime.utcnow()
     db.commit()
     
@@ -120,10 +145,14 @@ def update_pipeline(
 def delete_pipeline(
     job_id: int, 
     db: Session = Depends(get_db),
-    current_user: models.ETLUser = Depends(auth.require_developer)
+    tenant_ctx: auth.TenantContext = Depends(auth.require_permission(auth.Permission.CAN_EDIT_PIPELINES))
 ):
-    """Delete pipeline"""
-    db_job = db.query(models.ETLJob).filter(models.ETLJob.id == job_id).first()
+    """Delete pipeline with tenant check"""
+    query = db.query(models.ETLJob).filter(models.ETLJob.id == job_id)
+    if tenant_ctx.org_id is not None:
+        query = query.filter(models.ETLJob.org_id == tenant_ctx.org_id)
+        
+    db_job = query.first()
     if not db_job:
         raise HTTPException(status_code=404, detail="Pipeline not found")
     
@@ -149,7 +178,7 @@ def update_pipeline_params(
     job_id: int, 
     params: Dict[str, Any], 
     db: Session = Depends(get_db),
-    current_user: models.ETLUser = Depends(auth.require_developer)
+    tenant_ctx: auth.TenantContext = Depends(auth.require_permission(auth.Permission.CAN_EDIT_PIPELINES))
 ):
     """
     Update pipeline parameters with JSON Schema validation.
@@ -160,8 +189,12 @@ def update_pipeline_params(
     if not job:
         raise HTTPException(status_code=404, detail="Pipeline not found")
     
-    # Get the schema for validation
-    schema = db.query(models.ETLParamsSchema).filter(models.ETLParamsSchema.job_nm == job.job_nm).first()
+    # Get the schema for validation (Scoped to the job's code location)
+    schema = db.query(models.ETLParamsSchema).filter(
+        models.ETLParamsSchema.job_nm == job.job_nm,
+        models.ETLParamsSchema.code_location_id == job.code_location_id
+    ).first()
+    
     if schema:
         # Validate params against schema
         validate_params_against_schema(params, schema.json_schema)
@@ -172,12 +205,12 @@ def update_pipeline_params(
         db_params = models.ETLJobParameter(
             etl_job_id=job_id,
             config_json=params,
-            creat_by_nm=current_user.username
+            creat_by_nm=tenant_ctx.user.username
         )
         db.add(db_params)
     else:
         db_params.config_json = params
-        db_params.updt_by_nm = current_user.username
+        db_params.updt_by_nm = tenant_ctx.user.username
         db_params.updt_dttm = datetime.utcnow()
     
     db.commit()
@@ -198,8 +231,12 @@ def get_pipeline_schema(
     if not job:
         raise HTTPException(status_code=404, detail="Pipeline not found")
     
-    schema = db.query(models.ETLParamsSchema).filter(models.ETLParamsSchema.job_nm == job.job_nm).first()
+    schema = db.query(models.ETLParamsSchema).filter(
+        models.ETLParamsSchema.job_nm == job.job_nm,
+        models.ETLParamsSchema.code_location_id == job.code_location_id
+    ).first()
+    
     if not schema:
-        raise HTTPException(status_code=404, detail="Schema not found for this pipeline")
+        raise HTTPException(status_code=404, detail="Schema not found for this pipeline's code location")
     
     return schema

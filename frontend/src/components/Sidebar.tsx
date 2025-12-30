@@ -8,9 +8,10 @@ import {
     FileJson,
     Calendar,
     Activity,
-    Settings,
     LogOut,
-    UserCircle
+    UserCircle,
+    ShieldCheck,
+    GitBranch
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { RoleGuard } from './RoleGuard';
@@ -18,7 +19,7 @@ import { RoleGuard } from './RoleGuard';
 export const Sidebar: React.FC = () => {
     const location = useLocation();
     const [isConnected, setIsConnected] = useState<boolean | null>(null);
-    const { user, logout } = useAuth();
+    const { user, currentOrg, logout, currentTeamId, setCurrentTeamId } = useAuth();
 
     useEffect(() => {
         const checkHealth = async () => {
@@ -37,7 +38,7 @@ export const Sidebar: React.FC = () => {
 
     const isActive = (path: string) => location.pathname === path;
 
-    const NavItem = ({ to, icon: Icon, label, requiredRole }: any) => {
+    const NavItem = ({ to, icon: Icon, label, requiredRole, requiredPermission }: any) => {
         const content = (
             <Link
                 to={to}
@@ -59,8 +60,8 @@ export const Sidebar: React.FC = () => {
             </Link>
         );
 
-        if (requiredRole) {
-            return <RoleGuard requiredRole={requiredRole}>{content}</RoleGuard>;
+        if (requiredRole || requiredPermission) {
+            return <RoleGuard requiredRole={requiredRole} requiredPermission={requiredPermission}>{content}</RoleGuard>;
         }
 
         return content;
@@ -68,19 +69,59 @@ export const Sidebar: React.FC = () => {
 
     return (
         <div className="sidebar">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '3rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
                 <Workflow size={32} color="var(--accent-primary)" />
-                <h1 style={{ fontSize: '1.25rem' }}>Nexus Control</h1>
+                <div style={{ flex: 1 }}>
+                    <h1 style={{ fontSize: '1.25rem', marginBottom: '0.125rem' }}>
+                        {currentOrg?.org_code || 'Nexus'} Control
+                    </h1>
+                    {currentOrg && (
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            {currentOrg.org_nm}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Team Switcher */}
+            <div style={{ marginBottom: '2rem' }}>
+                <label style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', fontWeight: 700, marginLeft: '0.5rem', marginBottom: '0.5rem', display: 'block' }}>
+                    Active Team Scope
+                </label>
+                <select
+                    value={currentTeamId || ''}
+                    onChange={(e) => setCurrentTeamId(e.target.value ? parseInt(e.target.value) : null)}
+                    style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid var(--glass-border)',
+                        borderRadius: 'var(--radius-md)',
+                        color: 'white',
+                        fontSize: '0.9rem',
+                        outline: 'none',
+                        cursor: 'pointer'
+                    }}
+                >
+                    <option value="" style={{ background: '#1e1e2d' }}>All Teams (Org View)</option>
+                    {user?.team_memberships?.map(m => (
+                        <option key={m.team_id} value={m.team_id} style={{ background: '#1e1e2d' }}>
+                            {m.team.team_nm} ({m.role.role_nm.split('_').pop()})
+                        </option>
+                    ))}
+                </select>
             </div>
 
             <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <NavItem to="/" icon={LayoutDashboard} label="Dashboard" />
-                <NavItem to="/pipelines" icon={Workflow} label="Pipelines" />
-                <NavItem to="/connections" icon={Database} label="Connections" />
-                <NavItem to="/schemas" icon={FileJson} label="Schemas" />
-                <NavItem to="/schedules" icon={Calendar} label="Schedules" />
-                <NavItem to="/status" icon={Activity} label="Status" />
-                <NavItem to="/admin" icon={Settings} label="Admin" requiredRole="DPE_PLATFORM_ADMIN" />
+                <NavItem to="/pipelines" icon={Workflow} label="Pipelines" requiredPermission="CAN_VIEW_LOGS" />
+                <NavItem to="/connections" icon={Database} label="Connections" requiredPermission="CAN_MANAGE_CONNECTIONS" />
+                <NavItem to="/schemas" icon={FileJson} label="Schemas" requiredPermission="CAN_VIEW_LOGS" />
+                <NavItem to="/schedules" icon={Calendar} label="Schedules" requiredPermission="CAN_VIEW_LOGS" />
+                <NavItem to="/status" icon={Activity} label="Status" requiredPermission="CAN_VIEW_LOGS" />
+                <NavItem to="/code-locations" icon={GitBranch} label="Repositories" requiredPermission="CAN_EDIT_PIPELINES" />
+                <div style={{ margin: '0.75rem 0', height: '1px', background: 'var(--glass-border)' }}></div>
+                <NavItem to="/admin" icon={ShieldCheck} label="Access Management" requiredPermission="PLATFORM_ADMIN" />
             </nav>
 
             <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -102,7 +143,7 @@ export const Sidebar: React.FC = () => {
                             </div>
                         </Link>
                         <div style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>
-                            {(user?.role?.role_nm || user?.role_nm || 'Guest').replace('DPE_', '')}
+                            {user?.role?.role_nm?.replace('DPE_', '') || 'Guest'}
                         </div>
                     </div>
                     <button

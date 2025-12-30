@@ -29,13 +29,20 @@ export const PipelineList: React.FC = () => {
         cron: '',
     });
 
+    const [error, setError] = useState<string | null>(null);
+
     useEffect(() => {
         const fetchMetadata = async () => {
             try {
                 const res = await api.metadata.pipelines();
                 setMetadata(res.data);
-            } catch (err) {
+            } catch (err: any) {
                 console.error('Failed to fetch metadata', err);
+                if (err.response?.status === 403) {
+                    setError("You do not have permission to view pipelines.");
+                } else {
+                    setError("Failed to load pipeline metadata.");
+                }
             }
         };
         fetchMetadata();
@@ -163,8 +170,20 @@ export const PipelineList: React.FC = () => {
         p.job_nm.toLowerCase().includes(search.toLowerCase())
     );
 
+    if (error) {
+        return (
+            <div className="glass" style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                {error}
+            </div>
+        );
+    }
+
     if (!metadata) {
-        return <div>Loading metadata...</div>;
+        return (
+            <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                <div style={{ marginBottom: '1rem', opacity: 0.5 }}>Initializing...</div>
+            </div>
+        );
     }
 
     return (
@@ -202,6 +221,7 @@ export const PipelineList: React.FC = () => {
                 linkColumn="job_nm"
                 linkPath={(row) => `/pipelines/${row.id}`}
                 primaryKey={metadata.primary_key}
+                emptyMessage="No pipelines found for this team."
             />
 
             {showModal && (

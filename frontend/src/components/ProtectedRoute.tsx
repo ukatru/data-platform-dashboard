@@ -1,14 +1,15 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth, RoleName } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ProtectedRouteProps {
     children: React.ReactNode;
-    requiredRole?: RoleName;
+    requiredRole?: string;
+    requiredPermission?: string;
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole }) => {
-    const { isAuthenticated, user, loading } = useAuth();
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole, requiredPermission }) => {
+    const { isAuthenticated, hasPermission, loading } = useAuth();
     const location = useLocation();
 
     if (loading) {
@@ -19,18 +20,18 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
+    // New Permission Check
+    if (requiredPermission && !hasPermission(requiredPermission)) {
+        return <Navigate to="/" replace />;
+    }
+
+    // Legacy Role Check (mapped to permissions)
     if (requiredRole) {
-        const roleHierarchy: Record<RoleName, number> = {
-            'DPE_DATA_ANALYST': 1,
-            'DPE_DEVELOPER': 2,
-            'DPE_PLATFORM_ADMIN': 3
-        };
+        let perm = 'CAN_VIEW_LOGS'; // Default for ANALYST
+        if (requiredRole === 'DPE_PLATFORM_ADMIN') perm = 'PLATFORM_ADMIN';
+        if (requiredRole === 'DPE_DEVELOPER') perm = 'CAN_EDIT_PIPELINES';
 
-        const userRole = user?.role?.role_nm || user?.role_nm;
-        const userLevel = (userRole && roleHierarchy[userRole as RoleName]) || 0;
-        const requiredLevel = roleHierarchy[requiredRole];
-
-        if (userLevel < requiredLevel) {
+        if (!hasPermission(perm)) {
             return <Navigate to="/" replace />;
         }
     }

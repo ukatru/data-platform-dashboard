@@ -16,10 +16,16 @@ router = APIRouter()
 @router.get("/", response_model=List[schemas.ParamsSchema])
 def list_schemas(
     db: Session = Depends(get_db),
+    tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context),
     current_user: models.ETLUser = Depends(auth.require_analyst)
 ):
-    """List all parameter schemas"""
-    return db.query(models.ETLParamsSchema).all()
+    """List all parameter schemas for the current organization"""
+    query = db.query(models.ETLParamsSchema)
+    if tenant_ctx.org_id is not None:
+        # Filter schemas belonging to repositories within the user's organization
+        query = query.join(models.ETLCodeLocation).join(models.ETLTeam)\
+            .filter(models.ETLTeam.org_id == tenant_ctx.org_id)
+    return query.all()
 
 @router.post("/", response_model=schemas.ParamsSchema, status_code=status.HTTP_201_CREATED)
 def create_schema(
@@ -49,11 +55,16 @@ def get_schema(
 @router.get("/by-job/{job_nm}", response_model=schemas.ParamsSchema)
 def get_schema_by_job(
     job_nm: str, 
+    code_location_id: int,
     db: Session = Depends(get_db),
     current_user: models.ETLUser = Depends(auth.require_analyst)
 ):
-    """Get schema by job name"""
-    schema = db.query(models.ETLParamsSchema).filter(models.ETLParamsSchema.job_nm == job_nm).first()
+    """Get schema by job name and code location"""
+    schema = db.query(models.ETLParamsSchema).filter(
+        models.ETLParamsSchema.job_nm == job_nm,
+        models.ETLParamsSchema.code_location_id == code_location_id
+    ).first()
+    
     if not schema:
-        raise HTTPException(status_code=404, detail=f"Schema for job '{job_nm}' not found")
+        raise HTTPException(status_code=404, detail=f"Schema for job '{job_nm}' in code location {code_location_id} not found")
     return schema

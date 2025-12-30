@@ -11,8 +11,6 @@ PIPELINE_COLUMNS = [
     schemas.ColumnMetadata(name="id", label="ID", data_type="integer", visible=False, sortable=True),
     schemas.ColumnMetadata(name="job_nm", label="Pipeline Name", data_type="string", visible=True, sortable=True, render_hint="link", width="250px"),
     schemas.ColumnMetadata(name="invok_id", label="Invocation ID", data_type="string", visible=True, sortable=True, render_hint="code", width="150px"),
-    schemas.ColumnMetadata(name="source_conn_nm", label="Source", data_type="string", visible=True, sortable=True, width="150px"),
-    schemas.ColumnMetadata(name="target_conn_nm", label="Target", data_type="string", visible=True, sortable=True, width="150px"),
     schemas.ColumnMetadata(name="schedule", label="Schedule", data_type="string", visible=True, sortable=True, width="180px"),
     schemas.ColumnMetadata(name="cron_schedule", label="Cron", data_type="string", visible=False, sortable=False, render_hint="code"),
     schemas.ColumnMetadata(name="partition_start_dt", label="Partition Start", data_type="datetime", visible=False, sortable=True),
