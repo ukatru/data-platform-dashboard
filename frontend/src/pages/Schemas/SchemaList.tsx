@@ -8,25 +8,31 @@ export const SchemaList: React.FC = () => {
     const { currentTeamId } = useAuth();
     const [metadata, setMetadata] = useState<TableMetadata | null>(null);
     const [schemas, setSchemas] = useState<any[]>([]);
+    const [codeLocations, setCodeLocations] = useState<any[]>([]);
     const [showModal, setShowModal] = useState(false);
     const [viewingSchema, setViewingSchema] = useState<any>(null);
     const [formData, setFormData] = useState({
         job_nm: '',
         description: '',
+        code_location_id: '' as string | number,
         json_schema: '{\n  "type": "object",\n  "properties": {\n    \n  }\n}',
     });
 
     useEffect(() => {
-        const fetchMetadata = async () => {
+        const fetchReferenceData = async () => {
             try {
-                const res = await api.metadata.schemas();
-                setMetadata(res.data);
+                const [metaRes, locsRes] = await Promise.all([
+                    api.metadata.schemas(),
+                    api.management.listCodeLocations()
+                ]);
+                setMetadata(metaRes.data);
+                setCodeLocations(locsRes.data);
             } catch (err) {
-                console.error('Failed to fetch metadata', err);
+                console.error('Failed to fetch reference data', err);
             }
         };
-        fetchMetadata();
-    }, []);
+        fetchReferenceData();
+    }, [currentTeamId]);
 
     const fetchSchemas = async () => {
         try {
@@ -45,6 +51,7 @@ export const SchemaList: React.FC = () => {
         setFormData({
             job_nm: '',
             description: '',
+            code_location_id: codeLocations[0]?.id || '',
             json_schema: '{\n  "type": "object",\n  "properties": {\n    \n  }\n}',
         });
         setShowModal(true);
@@ -61,6 +68,7 @@ export const SchemaList: React.FC = () => {
             await api.schemas.create({
                 job_nm: formData.job_nm,
                 description: formData.description,
+                code_location_id: formData.code_location_id,
                 json_schema: parsedSchema,
             });
             setShowModal(false);
@@ -154,6 +162,24 @@ export const SchemaList: React.FC = () => {
                                     onChange={(e) => setFormData({ ...formData, job_nm: e.target.value })}
                                     placeholder="e.g. sales_daily_load"
                                 />
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                    Repository (Code Location) *
+                                </label>
+                                <select
+                                    required
+                                    value={formData.code_location_id}
+                                    onChange={(e) => setFormData({ ...formData, code_location_id: parseInt(e.target.value) })}
+                                >
+                                    <option value="">Select Repository...</option>
+                                    {codeLocations.map(loc => (
+                                        <option key={loc.id} value={loc.id}>
+                                            {loc.location_nm}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
 
                             <div>

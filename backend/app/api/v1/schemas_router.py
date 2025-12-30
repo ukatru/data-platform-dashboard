@@ -19,22 +19,30 @@ def list_schemas(
     tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context),
     current_user: models.ETLUser = Depends(auth.require_analyst)
 ):
-    """List all parameter schemas for the current organization"""
+    """List all parameter schemas for the current organization and active team focus"""
     query = db.query(models.ETLParamsSchema)
     if tenant_ctx.org_id is not None:
-        # Filter schemas belonging to repositories within the user's organization
-        query = query.join(models.ETLCodeLocation).join(models.ETLTeam)\
-            .filter(models.ETLTeam.org_id == tenant_ctx.org_id)
+        query = query.filter(models.ETLParamsSchema.org_id == tenant_ctx.org_id)
+    
+    if tenant_ctx.team_id is not None:
+        query = query.filter(models.ETLParamsSchema.team_id == tenant_ctx.team_id)
+        
     return query.all()
 
 @router.post("/", response_model=schemas.ParamsSchema, status_code=status.HTTP_201_CREATED)
 def create_schema(
     schema: schemas.ParamsSchemaCreate, 
     db: Session = Depends(get_db),
+    tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context),
     current_user: models.ETLUser = Depends(auth.require_developer)
 ):
     """Register a new parameter schema"""
-    db_schema = models.ETLParamsSchema(**schema.model_dump(), creat_by_nm=current_user.username)
+    db_schema = models.ETLParamsSchema(
+        **schema.model_dump(),
+        org_id=tenant_ctx.org_id,
+        team_id=tenant_ctx.team_id,
+        creat_by_nm=current_user.username
+    )
     db.add(db_schema)
     db.commit()
     db.refresh(db_schema)

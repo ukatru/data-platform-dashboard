@@ -118,6 +118,9 @@ class ParamsSchemaBase(BaseModel):
     job_nm: str
     json_schema: Dict[str, Any]
     description: Optional[str] = None
+    org_id: Optional[int] = None
+    team_id: Optional[int] = None
+    code_location_id: Optional[int] = None
 
 class ParamsSchemaCreate(ParamsSchemaBase):
     pass
