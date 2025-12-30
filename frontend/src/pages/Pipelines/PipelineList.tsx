@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api, TableMetadata } from '../../services/api';
 import { DynamicTable } from '../../components/DynamicTable';
 import { Plus, Search, X } from 'lucide-react';
+import { RoleGuard } from '../../components/RoleGuard';
 
 export const PipelineList: React.FC = () => {
     const [metadata, setMetadata] = useState<TableMetadata | null>(null);
@@ -173,9 +174,11 @@ export const PipelineList: React.FC = () => {
                     <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Pipelines</h1>
                     <p style={{ color: 'var(--text-secondary)' }}>Manage ETL pipeline configurations</p>
                 </div>
-                <button className="btn-primary" onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Plus size={20} /> New Pipeline
-                </button>
+                <RoleGuard requiredRole="DPE_DEVELOPER">
+                    <button className="btn-primary" onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Plus size={20} /> New Pipeline
+                    </button>
+                </RoleGuard>
             </div>
 
             <div className="glass" style={{ padding: '1.5rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -194,6 +197,8 @@ export const PipelineList: React.FC = () => {
                 data={filtered}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
+                editRole="DPE_DEVELOPER"
+                deleteRole="DPE_PLATFORM_ADMIN"
                 linkColumn="job_nm"
                 linkPath={(row) => `/pipelines/${row.id}`}
                 primaryKey={metadata.primary_key}

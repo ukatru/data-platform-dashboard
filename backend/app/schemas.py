@@ -150,3 +150,42 @@ class SummaryStats(BaseModel):
     active_runs: int
     failed_today: int
     last_sync: datetime
+
+# RBAC Schemas
+class RoleBase(BaseModel):
+    role_nm: str
+    description: Optional[str] = None
+    actv_ind: bool = True
+
+class Role(RoleBase):
+    id: int
+    class Config:
+        from_attributes = True
+
+class UserBase(BaseModel):
+    username: str
+    full_nm: str
+    email: Optional[str] = None
+    actv_ind: bool = True
+    role_id: int
+
+class UserCreate(UserBase):
+    password: str
+
+class UserUpdate(BaseModel):
+    full_nm: Optional[str] = None
+    email: Optional[str] = None
+    role_id: Optional[int] = None
+    actv_ind: Optional[bool] = None
+    password: Optional[str] = None
+
+class User(UserBase, AuditBase):
+    id: int
+    role: Role
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    username: Optional[str] = None

@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Dict, Any
 from metadata_framework import models
 from ...core.database import get_db
+from ...core import auth
 from ... import schemas
 
 router = APIRouter()
@@ -80,12 +81,19 @@ STANDARD_SCHEMAS = {
 }
 
 @router.get("/types", response_model=List[schemas.ConnTypeSchema])
-def list_connection_types(db: Session = Depends(get_db)):
+def list_connection_types(
+    db: Session = Depends(get_db),
+    current_user: models.ETLUser = Depends(auth.require_analyst)
+):
     """List all registered connection types and their schemas"""
     return db.query(models.ETLConnTypeSchema).all()
 
 @router.get("/types/{conn_type}", response_model=schemas.ConnTypeSchema)
-def get_connection_type_schema(conn_type: str, db: Session = Depends(get_db)):
+def get_connection_type_schema(
+    conn_type: str, 
+    db: Session = Depends(get_db),
+    current_user: models.ETLUser = Depends(auth.require_analyst)
+):
     """Get schema for a specific connection type"""
     schema = db.query(models.ETLConnTypeSchema).filter(models.ETLConnTypeSchema.conn_type == conn_type).first()
     if not schema:
@@ -105,7 +113,10 @@ def get_connection_type_schema(conn_type: str, db: Session = Depends(get_db)):
     return schema
 
 @router.post("/seed", status_code=status.HTTP_201_CREATED)
-def seed_standard_schemas(db: Session = Depends(get_db)):
+def seed_standard_schemas(
+    db: Session = Depends(get_db),
+    current_user: models.ETLUser = Depends(auth.require_admin)
+):
     """Seed the database with standard connection schemas"""
     seeded = []
     for ctype, sjson in STANDARD_SCHEMAS.items():

@@ -9,13 +9,17 @@ sys.path.append("/home/ukatru/github/dagster-metadata-framework/src")
 
 from metadata_framework import models
 from ...core.database import get_db
+from ...core import auth
 from ... import schemas
 from ...services.validator import validate_params_against_schema
 
 router = APIRouter()
 
 @router.get("/", response_model=List[schemas.Job])
-def list_pipelines(db: Session = Depends(get_db)):
+def list_pipelines(
+    db: Session = Depends(get_db),
+    current_user: models.ETLUser = Depends(auth.require_analyst)
+):
     """List all pipelines (jobs)"""
     results = db.query(models.ETLJob, models.ETLSchedule.slug, models.ETLSchedule.cron)\
         .outerjoin(models.ETLSchedule, models.ETLJob.schedule_id == models.ETLSchedule.id)\
@@ -36,7 +40,11 @@ def list_pipelines(db: Session = Depends(get_db)):
     return jobs
 
 @router.post("/", response_model=schemas.Job, status_code=status.HTTP_201_CREATED)
-def create_pipeline(job: schemas.JobCreate, db: Session = Depends(get_db)):
+def create_pipeline(
+    job: schemas.JobCreate, 
+    db: Session = Depends(get_db),
+    current_user: models.ETLUser = Depends(auth.require_developer)
+):
     """
     Create a new pipeline (composite operation).
     Creates records in:
@@ -44,7 +52,7 @@ def create_pipeline(job: schemas.JobCreate, db: Session = Depends(get_db)):
     2. etl_job_parameter - initialize with empty config (optional)
     """
     # Create the job
-    db_job = models.ETLJob(**job.model_dump(), creat_by_nm="DASHBOARD")
+    db_job = models.ETLJob(**job.model_dump(), creat_by_nm=current_user.username)
     db.add(db_job)
     db.commit()
     db.refresh(db_job)
@@ -53,7 +61,7 @@ def create_pipeline(job: schemas.JobCreate, db: Session = Depends(get_db)):
     db_params = models.ETLJobParameter(
         etl_job_id=db_job.id,
         config_json={},
-        creat_by_nm="DASHBOARD"
+        creat_by_nm=current_user.username
     )
     db.add(db_params)
     db.commit()
@@ -61,7 +69,11 @@ def create_pipeline(job: schemas.JobCreate, db: Session = Depends(get_db)):
     return get_pipeline(db_job.id, db)
 
 @router.get("/{job_id}", response_model=schemas.Job)
-def get_pipeline(job_id: int, db: Session = Depends(get_db)):
+def get_pipeline(
+    job_id: int, 
+    db: Session = Depends(get_db),
+    current_user: models.ETLUser = Depends(auth.require_analyst)
+):
     """Get pipeline by ID"""
     result = db.query(models.ETLJob, models.ETLSchedule.slug, models.ETLSchedule.cron)\
         .outerjoin(models.ETLSchedule, models.ETLJob.schedule_id == models.ETLSchedule.id)\
@@ -84,7 +96,12 @@ def get_pipeline(job_id: int, db: Session = Depends(get_db)):
     return job_data
 
 @router.put("/{job_id}", response_model=schemas.Job)
-def update_pipeline(job_id: int, job_update: schemas.JobUpdate, db: Session = Depends(get_db)):
+def update_pipeline(
+    job_id: int, 
+    job_update: schemas.JobUpdate, 
+    db: Session = Depends(get_db),
+    current_user: models.ETLUser = Depends(auth.require_developer)
+):
     """Update pipeline"""
     db_job = db.query(models.ETLJob).filter(models.ETLJob.id == job_id).first()
     if not db_job:
@@ -93,14 +110,18 @@ def update_pipeline(job_id: int, job_update: schemas.JobUpdate, db: Session = De
     for key, value in job_update.model_dump(exclude_unset=True).items():
         setattr(db_job, key, value)
     
-    db_job.updt_by_nm = "DASHBOARD"
+    db_job.updt_by_nm = current_user.username
     db_job.updt_dttm = datetime.utcnow()
     db.commit()
     
-    return get_pipeline(db_job.id, db)
+    return get_pipeline(db_job.id, db, current_user)
 
 @router.delete("/{job_id}")
-def delete_pipeline(job_id: int, db: Session = Depends(get_db)):
+def delete_pipeline(
+    job_id: int, 
+    db: Session = Depends(get_db),
+    current_user: models.ETLUser = Depends(auth.require_developer)
+):
     """Delete pipeline"""
     db_job = db.query(models.ETLJob).filter(models.ETLJob.id == job_id).first()
     if not db_job:
@@ -112,7 +133,11 @@ def delete_pipeline(job_id: int, db: Session = Depends(get_db)):
 
 # Parameter management endpoints
 @router.get("/{job_id}/params", response_model=schemas.JobParameter)
-def get_pipeline_params(job_id: int, db: Session = Depends(get_db)):
+def get_pipeline_params(
+    job_id: int, 
+    db: Session = Depends(get_db),
+    current_user: models.ETLUser = Depends(auth.require_analyst)
+):
     """Get pipeline parameters"""
     params = db.query(models.ETLJobParameter).filter(models.ETLJobParameter.etl_job_id == job_id).first()
     if not params:
@@ -120,7 +145,12 @@ def get_pipeline_params(job_id: int, db: Session = Depends(get_db)):
     return params
 
 @router.put("/{job_id}/params", response_model=schemas.JobParameter)
-def update_pipeline_params(job_id: int, params: Dict[str, Any], db: Session = Depends(get_db)):
+def update_pipeline_params(
+    job_id: int, 
+    params: Dict[str, Any], 
+    db: Session = Depends(get_db),
+    current_user: models.ETLUser = Depends(auth.require_developer)
+):
     """
     Update pipeline parameters with JSON Schema validation.
     Parameters are validated against the schema registered for this job.
@@ -142,12 +172,12 @@ def update_pipeline_params(job_id: int, params: Dict[str, Any], db: Session = De
         db_params = models.ETLJobParameter(
             etl_job_id=job_id,
             config_json=params,
-            creat_by_nm="DASHBOARD"
+            creat_by_nm=current_user.username
         )
         db.add(db_params)
     else:
         db_params.config_json = params
-        db_params.updt_by_nm = "DASHBOARD"
+        db_params.updt_by_nm = current_user.username
         db_params.updt_dttm = datetime.utcnow()
     
     db.commit()
@@ -155,7 +185,11 @@ def update_pipeline_params(job_id: int, params: Dict[str, Any], db: Session = De
     return db_params
 
 @router.get("/{job_id}/schema", response_model=schemas.ParamsSchema)
-def get_pipeline_schema(job_id: int, db: Session = Depends(get_db)):
+def get_pipeline_schema(
+    job_id: int, 
+    db: Session = Depends(get_db),
+    current_user: models.ETLUser = Depends(auth.require_analyst)
+):
     """
     Get the JSON Schema for this pipeline's parameters.
     Used by the frontend to dynamically generate the parameter form.

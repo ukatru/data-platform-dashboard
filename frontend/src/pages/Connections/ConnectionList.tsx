@@ -3,6 +3,7 @@ import { api, TableMetadata } from '../../services/api';
 import { DynamicTable } from '../../components/DynamicTable';
 import { GenericSchemaForm } from '../../components/GenericSchemaForm';
 import { Plus, X, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { RoleGuard } from '../../components/RoleGuard';
 
 export const ConnectionList: React.FC = () => {
     const [metadata, setMetadata] = useState<TableMetadata | null>(null);
@@ -203,9 +204,11 @@ export const ConnectionList: React.FC = () => {
                     <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Connections</h1>
                     <p style={{ color: 'var(--text-secondary)' }}>Manage data source and target configurations</p>
                 </div>
-                <button className="btn-primary" onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Plus size={20} /> New Connection
-                </button>
+                <RoleGuard requiredRole="DPE_PLATFORM_ADMIN">
+                    <button className="btn-primary" onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Plus size={20} /> New Connection
+                    </button>
+                </RoleGuard>
             </div>
 
             <DynamicTable
@@ -214,6 +217,9 @@ export const ConnectionList: React.FC = () => {
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 onTest={handleTest}
+                editRole="DPE_PLATFORM_ADMIN"
+                deleteRole="DPE_PLATFORM_ADMIN"
+                testRole="DPE_PLATFORM_ADMIN"
                 onLinkClick={handleView}
                 linkColumn="conn_nm"
                 primaryKey={metadata.primary_key}

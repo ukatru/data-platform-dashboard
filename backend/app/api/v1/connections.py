@@ -13,6 +13,7 @@ sys.path.append("/home/ukatru/github/dagster-metadata-framework/src")
 from metadata_framework import models
 from ... import schemas
 from ...core.database import get_db
+from ...core import auth
 from ...core.secrets import process_secrets_on_save, mask_secrets_on_retrieval, resolve_secrets
 
 # Import resources for testing
@@ -45,7 +46,10 @@ class DiagnosticTracer:
                 self.logs[-1]["message"] = message
 
 @router.get("/", response_model=List[schemas.Connection])
-def list_connections(db: Session = Depends(get_db)):
+def list_connections(
+    db: Session = Depends(get_db),
+    current_user: models.ETLUser = Depends(auth.require_analyst)
+):
     """List all connections"""
     conns = db.query(models.ETLConnection).all()
     for c in conns:
@@ -53,7 +57,11 @@ def list_connections(db: Session = Depends(get_db)):
     return conns
 
 @router.post("/", response_model=schemas.Connection, status_code=status.HTTP_201_CREATED)
-def create_connection(conn: schemas.ConnectionCreate, db: Session = Depends(get_db)):
+def create_connection(
+    conn: schemas.ConnectionCreate, 
+    db: Session = Depends(get_db),
+    current_user: models.ETLUser = Depends(auth.require_admin)
+):
     """Create a new connection"""
     # process secrets
     processed_config = process_secrets_on_save(conn.conn_nm, conn.config_json)
@@ -62,7 +70,7 @@ def create_connection(conn: schemas.ConnectionCreate, db: Session = Depends(get_
         conn_nm=conn.conn_nm,
         conn_type=conn.conn_type,
         config_json=processed_config,
-        creat_by_nm="DASHBOARD"
+        creat_by_nm=current_user.username
     )
     db.add(db_conn)
     db.commit()
@@ -72,7 +80,11 @@ def create_connection(conn: schemas.ConnectionCreate, db: Session = Depends(get_
     return db_conn
 
 @router.get("/{conn_id}", response_model=schemas.Connection)
-def get_connection(conn_id: int, db: Session = Depends(get_db)):
+def get_connection(
+    conn_id: int, 
+    db: Session = Depends(get_db),
+    current_user: models.ETLUser = Depends(auth.require_analyst)
+):
     """Get connection by ID"""
     conn = db.query(models.ETLConnection).filter(models.ETLConnection.id == conn_id).first()
     if not conn:
@@ -82,7 +94,12 @@ def get_connection(conn_id: int, db: Session = Depends(get_db)):
     return conn
 
 @router.put("/{conn_id}", response_model=schemas.Connection)
-def update_connection(conn_id: int, conn_update: schemas.ConnectionCreate, db: Session = Depends(get_db)):
+def update_connection(
+    conn_id: int, 
+    conn_update: schemas.ConnectionCreate, 
+    db: Session = Depends(get_db),
+    current_user: models.ETLUser = Depends(auth.require_admin)
+):
     """Update connection"""
     db_conn = db.query(models.ETLConnection).filter(models.ETLConnection.id == conn_id).first()
     if not db_conn:
@@ -94,7 +111,7 @@ def update_connection(conn_id: int, conn_update: schemas.ConnectionCreate, db: S
     db_conn.conn_nm = conn_update.conn_nm
     db_conn.conn_type = conn_update.conn_type
     db_conn.config_json = processed_config
-    db_conn.updt_by_nm = "DASHBOARD"
+    db_conn.updt_by_nm = current_user.username
     
     db.commit()
     db.refresh(db_conn)
@@ -252,14 +269,21 @@ def _perform_connection_test(conn_type: str, config: dict, conn_nm: str = "New C
         return {"status": "error", "message": error_msg, "logs": tracer.logs}
 
 @router.post("/test-raw")
-def test_raw_connection(conn: schemas.ConnectionCreate):
+def test_raw_connection(
+    conn: schemas.ConnectionCreate,
+    current_user: models.ETLUser = Depends(auth.require_developer)
+):
     """
     Stateless connection test before saving.
     """
     return _perform_connection_test(conn.conn_type, conn.config_json, conn.conn_nm)
 
 @router.post("/{conn_id}/test")
-def test_connection(conn_id: int, db: Session = Depends(get_db)):
+def test_connection(
+    conn_id: int, 
+    db: Session = Depends(get_db),
+    current_user: models.ETLUser = Depends(auth.require_developer)
+):
     """
     Test an existing connection.
     """
@@ -273,7 +297,11 @@ def test_connection(conn_id: int, db: Session = Depends(get_db)):
     return _perform_connection_test(conn.conn_type, resolved_config, conn.conn_nm)
 
 @router.delete("/{conn_id}")
-def delete_connection(conn_id: int, db: Session = Depends(get_db)):
+def delete_connection(
+    conn_id: int, 
+    db: Session = Depends(get_db),
+    current_user: models.ETLUser = Depends(auth.require_admin)
+):
     """Delete connection"""
     db_conn = db.query(models.ETLConnection).filter(models.ETLConnection.id == conn_id).first()
     if not db_conn:

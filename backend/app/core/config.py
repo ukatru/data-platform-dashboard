@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     DAG_FACTORY_SRC: str = "/home/ukatru/github/dagster-dag-factory/src"
     METADATA_FRAMEWORK_SRC: str = "/home/ukatru/github/dagster-metadata-framework/src"
     
+    # Security
+    SECRET_KEY: str = "7a4e69d95c1c4f4b9d0b8d5e8f1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8" # Should be set in .env
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 8 # 8 hours
+    
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding='utf-8',

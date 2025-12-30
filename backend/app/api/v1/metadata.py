@@ -1,6 +1,8 @@
-from fastapi import APIRouter
-from typing import Dict
+from typing import Dict, List
+from fastapi import Depends, APIRouter
 from ... import schemas
+from ...core import auth
+from metadata_framework import models
 
 router = APIRouter()
 
@@ -58,7 +60,7 @@ SCHEMA_COLUMNS = [
 ]
 
 @router.get("/pipelines", response_model=schemas.TableMetadata)
-def get_pipeline_metadata():
+def get_pipeline_metadata(current_user: models.ETLUser = Depends(auth.require_analyst)):
     """Get column metadata for pipelines table"""
     return schemas.TableMetadata(
         table_name="pipelines",
@@ -67,7 +69,7 @@ def get_pipeline_metadata():
     )
 
 @router.get("/schedules", response_model=schemas.TableMetadata)
-def get_schedule_metadata():
+def get_schedule_metadata(current_user: models.ETLUser = Depends(auth.require_analyst)):
     """Get column metadata for schedules table"""
     return schemas.TableMetadata(
         table_name="schedules",
@@ -76,7 +78,7 @@ def get_schedule_metadata():
     )
 
 @router.get("/connections", response_model=schemas.TableMetadata)
-def get_connection_metadata():
+def get_connection_metadata(current_user: models.ETLUser = Depends(auth.require_analyst)):
     """Get column metadata for connections table"""
     return schemas.TableMetadata(
         table_name="connections",
@@ -85,7 +87,7 @@ def get_connection_metadata():
     )
 
 @router.get("/status", response_model=schemas.TableMetadata)
-def get_status_metadata():
+def get_status_metadata(current_user: models.ETLUser = Depends(auth.require_analyst)):
     """Get column metadata for status table"""
     return schemas.TableMetadata(
         table_name="status",
@@ -94,7 +96,7 @@ def get_status_metadata():
     )
 
 @router.get("/schemas", response_model=schemas.TableMetadata)
-def get_schema_metadata():
+def get_schema_metadata(current_user: models.ETLUser = Depends(auth.require_analyst)):
     """Get column metadata for schemas table"""
     return schemas.TableMetadata(
         table_name="schemas",

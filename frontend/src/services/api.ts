@@ -1,69 +1,110 @@
-import axios from 'axios';
+import axios, { InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 
 const API_BASE = '/api/v1';
 
+const apiInstance = axios.create({
+    baseURL: '',
+});
+
+// Axios Interceptors for Auth
+apiInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+    const token = localStorage.getItem('token');
+    if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
+
+apiInstance.interceptors.response.use(
+    (response: AxiosResponse) => response,
+    (error: any) => {
+        if (error.response?.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            if (!window.location.pathname.startsWith('/login')) {
+                window.location.href = '/login';
+            }
+        }
+        return Promise.reject(error);
+    }
+);
+
 export const api = {
+    // Auth
+    auth: {
+        login: (formData: FormData) => apiInstance.post('/auth/login', formData),
+        me: () => apiInstance.get('/auth/me'),
+    },
+
+    // Users (Admin Only)
+    users: {
+        list: () => apiInstance.get('/users/'),
+        create: (data: any) => apiInstance.post('/users/', data),
+        update: (id: number, data: any) => apiInstance.put(`/users/${id}`, data),
+        listRoles: () => apiInstance.get('/users/roles'),
+    },
+
     // Metadata
     metadata: {
-        pipelines: () => axios.get(`${API_BASE}/metadata/pipelines`),
-        schedules: () => axios.get(`${API_BASE}/metadata/schedules`),
-        connections: () => axios.get(`${API_BASE}/metadata/connections`),
-        status: () => axios.get(`${API_BASE}/metadata/status`),
-        schemas: () => axios.get(`${API_BASE}/metadata/schemas`),
+        pipelines: () => apiInstance.get(`${API_BASE}/metadata/pipelines`),
+        schedules: () => apiInstance.get(`${API_BASE}/metadata/schedules`),
+        connections: () => apiInstance.get(`${API_BASE}/metadata/connections`),
+        status: () => apiInstance.get(`${API_BASE}/metadata/status`),
+        schemas: () => apiInstance.get(`${API_BASE}/metadata/schemas`),
     },
 
     // Connections
     connections: {
-        list: () => axios.get(`${API_BASE}/connections/`),
-        get: (id: number) => axios.get(`${API_BASE}/connections/${id}`),
-        create: (data: any) => axios.post(`${API_BASE}/connections/`, data),
-        update: (id: number, data: any) => axios.put(`${API_BASE}/connections/${id}`, data),
-        delete: (id: number) => axios.delete(`${API_BASE}/connections/${id}`),
-        test: (id: number) => axios.post(`${API_BASE}/connections/${id}/test`),
-        testRaw: (data: any) => axios.post(`${API_BASE}/connections/test-raw`, data),
-        seed: () => axios.post(`${API_BASE}/metadata/connections/seed`),
-        listTypes: () => axios.get(`${API_BASE}/metadata/connections/types`),
-        getTypeSchema: (type: string) => axios.get(`${API_BASE}/metadata/connections/types/${type}`),
+        list: () => apiInstance.get(`${API_BASE}/connections/`),
+        get: (id: number) => apiInstance.get(`${API_BASE}/connections/${id}`),
+        create: (data: any) => apiInstance.post(`${API_BASE}/connections/`, data),
+        update: (id: number, data: any) => apiInstance.put(`${API_BASE}/connections/${id}`, data),
+        delete: (id: number) => apiInstance.delete(`${API_BASE}/connections/${id}`),
+        test: (id: number) => apiInstance.post(`${API_BASE}/connections/${id}/test`),
+        testRaw: (data: any) => apiInstance.post(`${API_BASE}/connections/test-raw`, data),
+        seed: () => apiInstance.post(`${API_BASE}/metadata/connections/seed`),
+        listTypes: () => apiInstance.get(`${API_BASE}/metadata/connections/types`),
+        getTypeSchema: (type: string) => apiInstance.get(`${API_BASE}/metadata/connections/types/${type}`),
     },
 
     // Schedules
     schedules: {
-        list: () => axios.get(`${API_BASE}/schedules/`),
-        get: (id: number) => axios.get(`${API_BASE}/schedules/${id}`),
-        create: (data: any) => axios.post(`${API_BASE}/schedules/`, data),
-        update: (id: number, data: any) => axios.put(`${API_BASE}/schedules/${id}`, data),
-        delete: (id: number) => axios.delete(`${API_BASE}/schedules/${id}`),
+        list: () => apiInstance.get(`${API_BASE}/schedules/`),
+        get: (id: number) => apiInstance.get(`${API_BASE}/schedules/${id}`),
+        create: (data: any) => apiInstance.post(`${API_BASE}/schedules/`, data),
+        update: (id: number, data: any) => apiInstance.put(`${API_BASE}/schedules/${id}`, data),
+        delete: (id: number) => apiInstance.delete(`${API_BASE}/schedules/${id}`),
     },
 
     // Schemas
     schemas: {
-        list: () => axios.get(`${API_BASE}/schemas/`),
-        get: (id: number) => axios.get(`${API_BASE}/schemas/${id}`),
-        getByJob: (jobName: string) => axios.get(`${API_BASE}/schemas/by-job/${jobName}`),
-        create: (data: any) => axios.post(`${API_BASE}/schemas/`, data),
+        list: () => apiInstance.get(`${API_BASE}/schemas/`),
+        get: (id: number) => apiInstance.get(`${API_BASE}/schemas/${id}`),
+        getByJob: (jobName: string) => apiInstance.get(`${API_BASE}/schemas/by-job/${jobName}`),
+        create: (data: any) => apiInstance.post(`${API_BASE}/schemas/`, data),
     },
 
     // Pipelines
     pipelines: {
-        list: () => axios.get(`${API_BASE}/pipelines/`),
-        get: (id: number) => axios.get(`${API_BASE}/pipelines/${id}`),
-        create: (data: any) => axios.post(`${API_BASE}/pipelines/`, data),
-        update: (id: number, data: any) => axios.put(`${API_BASE}/pipelines/${id}`, data),
-        delete: (id: number) => axios.delete(`${API_BASE}/pipelines/${id}`),
-        getParams: (id: number) => axios.get(`${API_BASE}/pipelines/${id}/params`),
-        updateParams: (id: number, params: any) => axios.put(`${API_BASE}/pipelines/${id}/params`, params),
-        getSchema: (id: number) => axios.get(`${API_BASE}/pipelines/${id}/schema`),
+        list: () => apiInstance.get(`${API_BASE}/pipelines/`),
+        get: (id: number) => apiInstance.get(`${API_BASE}/pipelines/${id}`),
+        create: (data: any) => apiInstance.post(`${API_BASE}/pipelines/`),
+        update: (id: number, data: any) => apiInstance.put(`${API_BASE}/pipelines/${id}`, data),
+        delete: (id: number) => apiInstance.delete(`${API_BASE}/pipelines/${id}`),
+        getParams: (id: number) => apiInstance.get(`${API_BASE}/pipelines/${id}/params`),
+        updateParams: (id: number, params: any) => apiInstance.put(`${API_BASE}/pipelines/${id}/params`, params),
+        getSchema: (id: number) => apiInstance.get(`${API_BASE}/pipelines/${id}/schema`),
     },
 
     // Status
     status: {
-        summary: () => axios.get(`${API_BASE}/status/summary`),
+        summary: () => apiInstance.get(`${API_BASE}/status/summary`),
         jobs: (filters?: { job_nm?: string; sts_cd?: string; limit?: number }) =>
-            axios.get(`${API_BASE}/status/jobs`, { params: filters }),
-        assets: (btchNbr: number) => axios.get(`${API_BASE}/status/jobs/${btchNbr}/assets`),
+            apiInstance.get(`${API_BASE}/status/jobs`, { params: filters }),
+        assets: (btchNbr: number) => apiInstance.get(`${API_BASE}/status/jobs/${btchNbr}/assets`),
     },
 
-    healthCheck: () => axios.get(`${API_BASE}/`),
+    healthCheck: () => apiInstance.get(`${API_BASE}/`),
 };
 
 // Types for metadata-driven tables

@@ -2,6 +2,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Edit, Trash2, Copy, Play } from 'lucide-react';
 import { ColumnMetadata } from '../services/api';
+import { RoleName } from '../contexts/AuthContext';
+import { RoleGuard } from './RoleGuard';
 
 interface DynamicTableProps {
     metadata: ColumnMetadata[];
@@ -13,6 +15,9 @@ interface DynamicTableProps {
     linkColumn?: string;
     linkPath?: (row: any) => string;
     primaryKey: string;
+    editRole?: RoleName;
+    deleteRole?: RoleName;
+    testRole?: RoleName;
 }
 
 export const DynamicTable: React.FC<DynamicTableProps> = ({
@@ -25,6 +30,9 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
     linkColumn,
     linkPath,
     primaryKey,
+    editRole,
+    deleteRole,
+    testRole,
 }) => {
     const visibleColumns = metadata.filter(col => col.visible);
 
@@ -169,19 +177,25 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
                                 <td>
                                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                                         {onTest && (
-                                            <button onClick={() => onTest(row)} style={{ color: 'var(--accent-secondary)' }} title="Test Connection">
-                                                <Play size={16} />
-                                            </button>
+                                            <RoleGuard requiredRole={testRole || 'DPE_DATA_ANALYST'}>
+                                                <button onClick={() => onTest(row)} style={{ color: 'var(--accent-secondary)' }} title="Test Connection">
+                                                    <Play size={16} />
+                                                </button>
+                                            </RoleGuard>
                                         )}
                                         {onEdit && (
-                                            <button onClick={() => onEdit(row)} style={{ color: 'var(--accent-primary)' }} title="Edit">
-                                                <Edit size={16} />
-                                            </button>
+                                            <RoleGuard requiredRole={editRole || 'DPE_DEVELOPER'}>
+                                                <button onClick={() => onEdit(row)} style={{ color: 'var(--accent-primary)' }} title="Edit">
+                                                    <Edit size={16} />
+                                                </button>
+                                            </RoleGuard>
                                         )}
                                         {onDelete && (
-                                            <button onClick={() => onDelete(row)} style={{ color: 'var(--error)' }} title="Delete">
-                                                <Trash2 size={16} />
-                                            </button>
+                                            <RoleGuard requiredRole={deleteRole || 'DPE_PLATFORM_ADMIN'}>
+                                                <button onClick={() => onDelete(row)} style={{ color: 'var(--error)' }} title="Delete">
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </RoleGuard>
                                         )}
                                     </div>
                                 </td>

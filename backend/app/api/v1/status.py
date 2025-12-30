@@ -9,12 +9,16 @@ sys.path.append("/home/ukatru/github/dagster-metadata-framework/src")
 
 from metadata_framework import models
 from ...core.database import get_db
+from ...core import auth
 from ... import schemas
 
 router = APIRouter()
 
 @router.get("/summary", response_model=schemas.SummaryStats)
-def get_summary(db: Session = Depends(get_db)):
+def get_summary(
+    db: Session = Depends(get_db),
+    current_user: models.ETLUser = Depends(auth.require_analyst)
+):
     """Get summary statistics for the dashboard"""
     conn_count = db.query(models.ETLConnection).count()
     job_count = db.query(models.ETLJob).count()
@@ -44,7 +48,8 @@ def get_job_statuses(
     job_nm: Optional[str] = None,
     sts_cd: Optional[str] = None,
     limit: int = Query(50, le=200),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.ETLUser = Depends(auth.require_analyst)
 ):
     """
     Get job execution history with filtering.
@@ -60,7 +65,11 @@ def get_job_statuses(
     return query.order_by(models.ETLJobStatus.strt_dttm.desc()).limit(limit).all()
 
 @router.get("/jobs/{btch_nbr}/assets", response_model=List[schemas.AssetStatus])
-def get_batch_assets(btch_nbr: int, db: Session = Depends(get_db)):
+def get_batch_assets(
+    btch_nbr: int, 
+    db: Session = Depends(get_db),
+    current_user: models.ETLUser = Depends(auth.require_analyst)
+):
     """
     Get asset-level events for a specific batch.
     Shows detailed lineage and error information.

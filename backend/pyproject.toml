@@ -16,6 +16,9 @@ dependencies = [
     "pydantic-settings",
     "python-dotenv",
     "jsonschema",
+    "passlib[bcrypt]",
+    "python-jose[cryptography]",
+    "python-multipart"
 ]
 
 [project.optional-dependencies]
