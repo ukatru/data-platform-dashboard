@@ -3,7 +3,7 @@ import hashlib
 import bcrypt
 from typing import Optional, Any, Union
 from jose import jwt, JWTError
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Header
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from ..core.config import settings
@@ -77,19 +77,45 @@ class TenantContext:
         self.org_id = user.org_id
         self.org_code = payload.get("org_code")
         
-        # Use the team_id from payload (if provided via switcher) or fall back to default
+        # The 'active' focus (team_id) from payload
         self.team_id = payload.get("team_id") or getattr(user, "default_team_id", None)
         
-        # Aggregate permissions from primary role AND all team memberships
-        self.permissions = get_role_permissions(user.role.role_nm)
+        # Store global permissions (from primary role)
+        self.global_permissions = get_role_permissions(user.role.role_nm)
         
+        # Map team_id -> set of permissions for all memberships
+        self.team_permissions: dict[int, set[str]] = {}
         for membership in getattr(user, "team_memberships", []):
             if membership.actv_ind:
-                member_perms = get_role_permissions(membership.role.role_nm)
-                self.permissions.update(member_perms)
+                self.team_permissions[membership.team_id] = get_role_permissions(membership.role.role_nm)
 
-    def has_permission(self, permission: str) -> bool:
-        return permission in self.permissions or Permission.PLATFORM_ADMIN in self.permissions
+    def has_permission(self, permission: str, team_id: Optional[int] = None) -> bool:
+        """
+        Check if user has permission.
+        If team_id is provided, checks if user has that permission IN THAT SPECIFIC TEAM.
+        Otherwise, checks global permissions OR if they have it in ANY team (for broad visibility).
+        PLATFORM_ADMIN always returns True.
+        """
+        if Permission.PLATFORM_ADMIN in self.global_permissions:
+            return True
+            
+        # Global permission check
+        if team_id is None:
+            # Does the user have this globally?
+            if permission in self.global_permissions:
+                return True
+            # Or do they have it in ANY of their teams? (Useful for 'CAN_VIEW_LOGS' in unified view)
+            for team_perms in self.team_permissions.values():
+                if permission in team_perms:
+                    return True
+            return False
+            
+        # Scoped permission check
+        scoped_perms = self.team_permissions.get(team_id)
+        if scoped_perms and permission in scoped_perms:
+            return True
+            
+        return False
 
 async def get_current_user(
     db: Session = Depends(get_db),
@@ -118,12 +144,17 @@ async def get_current_user(
 
 async def get_tenant_context(
     current_user: models.ETLUser = Depends(get_current_user),
-    token: str = Depends(oauth2_scheme)
+    token: str = Depends(oauth2_scheme),
+    x_team_id: Optional[str] = Header(None, alias="X-Team-Id")
 ) -> TenantContext:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if x_team_id:
+            payload["team_id"] = int(x_team_id)
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
+    except ValueError:
+        pass # Ignore malformed header
     
     return TenantContext(user=current_user, payload=payload)
 

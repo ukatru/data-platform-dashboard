@@ -3,17 +3,20 @@ import { api, TableMetadata } from '../../services/api';
 import { DynamicTable } from '../../components/DynamicTable';
 import { Plus, X } from 'lucide-react';
 import { RoleGuard } from '../../components/RoleGuard';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const ScheduleList: React.FC = () => {
     const [metadata, setMetadata] = useState<TableMetadata | null>(null);
     const [schedules, setSchedules] = useState<any[]>([]);
     const [showModal, setShowModal] = useState(false);
     const [editingSched, setEditingSched] = useState<any>(null);
+    const { user, currentTeamId } = useAuth();
     const [formData, setFormData] = useState({
         slug: '',
         cron: '',
         timezone: 'UTC',
         actv_ind: true,
+        team_id: '' as string | number
     });
 
     useEffect(() => {
@@ -39,11 +42,17 @@ export const ScheduleList: React.FC = () => {
 
     useEffect(() => {
         fetchSchedules();
-    }, []);
+    }, [currentTeamId]);
 
     const handleCreate = () => {
         setEditingSched(null);
-        setFormData({ slug: '', cron: '', timezone: 'UTC', actv_ind: true });
+        setFormData({
+            slug: '',
+            cron: '',
+            timezone: 'UTC',
+            actv_ind: true,
+            team_id: currentTeamId || ''
+        });
         setShowModal(true);
     };
 
@@ -54,6 +63,7 @@ export const ScheduleList: React.FC = () => {
             cron: sched.cron,
             timezone: sched.timezone || 'UTC',
             actv_ind: sched.actv_ind,
+            team_id: sched.team_id || ''
         });
         setShowModal(true);
     };
@@ -161,6 +171,24 @@ export const ScheduleList: React.FC = () => {
                                     <option value="America/Chicago">America/Chicago</option>
                                     <option value="America/Los_Angeles">America/Los_Angeles</option>
                                     <option value="Europe/London">Europe/London</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                    Target Team *
+                                </label>
+                                <select
+                                    required
+                                    value={formData.team_id}
+                                    onChange={(e) => setFormData({ ...formData, team_id: e.target.value ? parseInt(e.target.value) : '' })}
+                                >
+                                    <option value="">Select Team...</option>
+                                    {user?.team_memberships?.map(m => (
+                                        <option key={m.team.id} value={m.team.id}>
+                                            {m.team.team_nm} ({m.role.role_nm.replace('DPE_', '').replace(/_/g, ' ')})
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
 

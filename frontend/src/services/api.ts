@@ -9,8 +9,12 @@ const apiInstance = axios.create({
 // Axios Interceptors for Auth
 apiInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('token');
+    const teamId = localStorage.getItem('currentTeamId');
     if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
+    }
+    if (teamId && config.headers) {
+        config.headers['X-Team-Id'] = teamId;
     }
     return config;
 });

@@ -36,27 +36,19 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
     testRole,
     emptyMessage = "No records found"
 }) => {
-    const { user } = useAuth();
+    const { hasPermission } = useAuth();
     const visibleColumns = metadata.filter(col => col.visible);
 
-    const roleHierarchy: Record<RoleName, number> = {
-        'DPE_DATA_ANALYST': 1,
-        'DPE_DEVELOPER': 2,
-        'DPE_PLATFORM_ADMIN': 3
-    };
-
-    const userRole = user?.role?.role_nm || user?.role_nm;
-    const userLevel = (userRole && roleHierarchy[userRole as RoleName]) || 0;
-
-    const hasActionPermission = (requiredRole?: RoleName) => {
-        if (!requiredRole) return true;
-        return userLevel >= roleHierarchy[requiredRole];
+    const getPermissionForRole = (role?: RoleName) => {
+        if (role === 'DPE_PLATFORM_ADMIN') return 'PLATFORM_ADMIN';
+        if (role === 'DPE_DEVELOPER') return 'CAN_EDIT_PIPELINES';
+        return 'CAN_VIEW_LOGS';
     };
 
     const isActionsVisible = (
-        (onEdit && hasActionPermission(editRole || 'DPE_DEVELOPER')) ||
-        (onDelete && hasActionPermission(deleteRole || 'DPE_PLATFORM_ADMIN')) ||
-        (onTest && hasActionPermission(testRole || 'DPE_DATA_ANALYST'))
+        (onEdit && hasPermission(getPermissionForRole(editRole || 'DPE_DEVELOPER'))) ||
+        (onDelete && hasPermission(getPermissionForRole(deleteRole || 'DPE_PLATFORM_ADMIN'))) ||
+        (onTest && hasPermission(getPermissionForRole(testRole || 'DPE_DATA_ANALYST')))
     );
 
     const copyToClipboard = (text: string) => {

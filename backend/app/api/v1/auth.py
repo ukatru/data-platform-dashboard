@@ -44,12 +44,19 @@ def read_users_me(
     current_user: models.ETLUser = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
-    # Calculate aggregated permissions
+    # Calculate aggregated permissions (Legacy/Unified view support)
     all_perms = auth.get_role_permissions(current_user.role.role_nm)
+    
+    # Calculate scoped permissions map
+    team_perms_map: dict[int, list[str]] = {}
+    
     for membership in current_user.team_memberships:
         if membership.actv_ind:
-            all_perms.update(auth.get_role_permissions(membership.role.role_nm))
+            role_perms = auth.get_role_permissions(membership.role.role_nm)
+            team_perms_map[membership.team_id] = list(role_perms)
+            all_perms.update(role_perms)
     
     # Attach to user object for Pydantic serialization
     current_user.permissions = list(all_perms)
+    current_user.team_permissions = team_perms_map
     return current_user

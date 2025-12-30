@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { api, TableMetadata } from '../../services/api';
 import { Plus, X, Eye } from 'lucide-react';
 import { RoleGuard } from '../../components/RoleGuard';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const SchemaList: React.FC = () => {
+    const { currentTeamId } = useAuth();
     const [metadata, setMetadata] = useState<TableMetadata | null>(null);
     const [schemas, setSchemas] = useState<any[]>([]);
     const [showModal, setShowModal] = useState(false);
@@ -37,7 +39,7 @@ export const SchemaList: React.FC = () => {
 
     useEffect(() => {
         fetchSchemas();
-    }, []);
+    }, [currentTeamId]);
 
     const handleCreate = () => {
         setFormData({

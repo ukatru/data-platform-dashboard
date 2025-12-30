@@ -28,6 +28,13 @@ def list_pipelines(
     if tenant_ctx.org_id is not None:
         query = query.filter(models.ETLJob.org_id == tenant_ctx.org_id)
         
+    # Team Filtering
+    if tenant_ctx.team_id:
+        query = query.filter(models.ETLJob.team_id == tenant_ctx.team_id)
+    elif not tenant_ctx.has_permission(auth.Permission.PLATFORM_ADMIN):
+        user_team_ids = [m.team_id for m in tenant_ctx.user.team_memberships if m.actv_ind]
+        query = query.filter(models.ETLJob.team_id.in_(user_team_ids))
+        
     results = query.all()
     
     jobs = []
@@ -57,6 +64,13 @@ def create_pipeline(
     org_id = job.org_id
     if tenant_ctx.org_id is not None:
         org_id = tenant_ctx.org_id
+        
+    # Scoped Permission Check: Ensure user can edit pipelines for the TARGET team
+    if not tenant_ctx.has_permission(auth.Permission.CAN_EDIT_PIPELINES, team_id=job.team_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"You do not have permission to create pipelines for Team ID {job.team_id}"
+        )
     """
     Create a new pipeline (composite operation).
     Creates records in:

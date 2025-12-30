@@ -3,8 +3,10 @@ import { api, TableMetadata } from '../../services/api';
 import { DynamicTable } from '../../components/DynamicTable';
 import { Plus, Search, X } from 'lucide-react';
 import { RoleGuard } from '../../components/RoleGuard';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const PipelineList: React.FC = () => {
+    const { currentTeamId } = useAuth();
     const [metadata, setMetadata] = useState<TableMetadata | null>(null);
     const [pipelines, setPipelines] = useState<any[]>([]);
     const [connections, setConnections] = useState<any[]>([]);
@@ -63,7 +65,7 @@ export const PipelineList: React.FC = () => {
             }
         };
         fetchReferenceData();
-    }, []);
+    }, [currentTeamId]);
 
     const fetchPipelines = async () => {
         try {
@@ -76,7 +78,7 @@ export const PipelineList: React.FC = () => {
 
     useEffect(() => {
         fetchPipelines();
-    }, []);
+    }, [currentTeamId]);
 
     const handleCreate = () => {
         setEditingPipeline(null);

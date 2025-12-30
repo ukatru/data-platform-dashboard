@@ -16,19 +16,44 @@ router = APIRouter()
 @router.get("/", response_model=List[schemas.Schedule])
 def list_schedules(
     db: Session = Depends(get_db),
-    current_user: models.ETLUser = Depends(auth.require_analyst)
+    tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context)
 ):
-    """List all schedules"""
-    return db.query(models.ETLSchedule).all()
+    """List schedules scoped by organization and authorized teams"""
+    query = db.query(models.ETLSchedule)
+    
+    if tenant_ctx.org_id is not None:
+        query = query.filter(models.ETLSchedule.org_id == tenant_ctx.org_id)
+        
+    # If a specific team is focused, filter by that team. 
+    # Otherwise, filter by ALL teams the user belongs to (unless Platform Admin)
+    if tenant_ctx.team_id:
+        query = query.filter(models.ETLSchedule.team_id == tenant_ctx.team_id)
+    elif not tenant_ctx.has_permission(auth.Permission.PLATFORM_ADMIN):
+        user_team_ids = [m.team_id for m in tenant_ctx.user.team_memberships if m.actv_ind]
+        query = query.filter(models.ETLSchedule.team_id.in_(user_team_ids))
+        
+    return query.all()
 
 @router.post("/", response_model=schemas.Schedule, status_code=status.HTTP_201_CREATED)
 def create_schedule(
-    sched: schemas.ScheduleCreate, 
+    sched_in: schemas.ScheduleCreate, 
     db: Session = Depends(get_db),
-    current_user: models.ETLUser = Depends(auth.require_developer)
+    tenant_ctx: auth.TenantContext = Depends(auth.require_permission(auth.Permission.CAN_EDIT_PIPELINES))
 ):
-    """Create a new schedule"""
-    db_sched = models.ETLSchedule(**sched.model_dump(), creat_by_nm=current_user.username)
+    """Create a new schedule scoped to the user's organization and a target team"""
+    org_id = tenant_ctx.org_id or sched_in.org_id
+    if org_id is None:
+        raise HTTPException(status_code=400, detail="Organization ID is required")
+        
+    # Ensure user has permission for the TARGET team
+    if sched_in.team_id and not tenant_ctx.has_permission(auth.Permission.CAN_EDIT_PIPELINES, team_id=sched_in.team_id):
+        raise HTTPException(status_code=403, detail=f"You do not have permission to create schedules for Team ID {sched_in.team_id}")
+
+    db_sched = models.ETLSchedule(
+        **sched_in.model_dump(exclude={"org_id"}), 
+        org_id=org_id,
+        creat_by_nm=tenant_ctx.user.username
+    )
     db.add(db_sched)
     db.commit()
     db.refresh(db_sched)
@@ -38,12 +63,18 @@ def create_schedule(
 def get_schedule(
     sched_id: int, 
     db: Session = Depends(get_db),
-    current_user: models.ETLUser = Depends(auth.require_analyst)
+    tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context)
 ):
-    """Get schedule by ID"""
-    sched = db.query(models.ETLSchedule).filter(models.ETLSchedule.id == sched_id).first()
+    """Get schedule by ID with tenant check"""
+    query = db.query(models.ETLSchedule).filter(models.ETLSchedule.id == sched_id)
+    
+    if tenant_ctx.org_id is not None:
+        query = query.filter(models.ETLSchedule.org_id == tenant_ctx.org_id)
+        
+    sched = query.first()
     if not sched:
         raise HTTPException(status_code=404, detail="Schedule not found")
+        
     return sched
 
 @router.put("/{sched_id}", response_model=schemas.Schedule)
@@ -51,17 +82,25 @@ def update_schedule(
     sched_id: int, 
     sched_update: schemas.ScheduleCreate, 
     db: Session = Depends(get_db),
-    current_user: models.ETLUser = Depends(auth.require_developer)
+    tenant_ctx: auth.TenantContext = Depends(auth.require_permission(auth.Permission.CAN_EDIT_PIPELINES))
 ):
-    """Update schedule"""
-    db_sched = db.query(models.ETLSchedule).filter(models.ETLSchedule.id == sched_id).first()
+    """Update schedule with tenant check"""
+    query = db.query(models.ETLSchedule).filter(models.ETLSchedule.id == sched_id)
+    if tenant_ctx.org_id is not None:
+        query = query.filter(models.ETLSchedule.org_id == tenant_ctx.org_id)
+        
+    db_sched = query.first()
     if not db_sched:
         raise HTTPException(status_code=404, detail="Schedule not found")
     
+    # Check permission for the owning team
+    if not tenant_ctx.has_permission(auth.Permission.CAN_EDIT_PIPELINES, team_id=db_sched.team_id):
+        raise HTTPException(status_code=403, detail="Access denied to update this schedule")
+
     for key, value in sched_update.model_dump(exclude_unset=True).items():
         setattr(db_sched, key, value)
     
-    db_sched.updt_by_nm = current_user.username
+    db_sched.updt_by_nm = tenant_ctx.user.username
     db.commit()
     db.refresh(db_sched)
     return db_sched
@@ -70,12 +109,20 @@ def update_schedule(
 def delete_schedule(
     sched_id: int, 
     db: Session = Depends(get_db),
-    current_user: models.ETLUser = Depends(auth.require_developer)
+    tenant_ctx: auth.TenantContext = Depends(auth.require_permission(auth.Permission.CAN_EDIT_PIPELINES))
 ):
-    """Delete schedule"""
-    db_sched = db.query(models.ETLSchedule).filter(models.ETLSchedule.id == sched_id).first()
+    """Delete schedule with tenant check"""
+    query = db.query(models.ETLSchedule).filter(models.ETLSchedule.id == sched_id)
+    if tenant_ctx.org_id is not None:
+        query = query.filter(models.ETLSchedule.org_id == tenant_ctx.org_id)
+        
+    db_sched = query.first()
     if not db_sched:
         raise HTTPException(status_code=404, detail="Schedule not found")
+
+    # Check permission for the owning team
+    if not tenant_ctx.has_permission(auth.Permission.CAN_EDIT_PIPELINES, team_id=db_sched.team_id):
+        raise HTTPException(status_code=403, detail="Access denied to delete this schedule")
     
     db.delete(db_sched)
     db.commit()

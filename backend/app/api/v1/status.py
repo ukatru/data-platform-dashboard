@@ -34,20 +34,28 @@ def get_summary(
     # 2. Team Filtering (Implicit or Explicit)
     effective_team_id = team_id or tenant_ctx.team_id
     
+    sched_query = db.query(models.ETLSchedule)
+    # Note: Phase 8 will add org_id/team_id to ETLSchedule. 
+    # For now, we filter jobs and then count unique schedules linked to those jobs 
+    # OR we just filter by the jobs the user has access to.
+    
     if effective_team_id:
         conn_query = conn_query.filter(models.ETLConnection.team_id == effective_team_id)
         job_query = job_query.filter(models.ETLJob.team_id == effective_team_id)
         status_query = status_query.filter(models.ETLJobStatus.team_id == effective_team_id)
+        # Filters schedules linked to jobs in this team
+        sched_query = sched_query.join(models.ETLJob).filter(models.ETLJob.team_id == effective_team_id)
     elif not tenant_ctx.has_permission(auth.Permission.PLATFORM_ADMIN):
         # If not an admin and no specific team selected, show only teams the user belongs to
         user_team_ids = [m.team_id for m in tenant_ctx.user.team_memberships if m.actv_ind]
         conn_query = conn_query.filter(models.ETLConnection.team_id.in_(user_team_ids))
         job_query = job_query.filter(models.ETLJob.team_id.in_(user_team_ids))
         status_query = status_query.filter(models.ETLJobStatus.team_id.in_(user_team_ids))
+        sched_query = sched_query.join(models.ETLJob).filter(models.ETLJob.team_id.in_(user_team_ids))
 
     conn_count = conn_query.count()
     job_count = job_query.count()
-    sched_count = db.query(models.ETLSchedule).count() # TODO: Add team filtering to schedules
+    sched_count = sched_query.distinct().count()
     
     # Operational stats
     now = datetime.utcnow()

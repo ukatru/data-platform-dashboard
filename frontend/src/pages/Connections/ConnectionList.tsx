@@ -7,7 +7,7 @@ import { RoleGuard } from '../../components/RoleGuard';
 import { useAuth } from '../../contexts/AuthContext';
 
 export const ConnectionList: React.FC = () => {
-    const { hasPermission } = useAuth();
+    const { hasPermission, currentTeamId } = useAuth();
     const canManage = hasPermission('CAN_MANAGE_CONNECTIONS');
     const [metadata, setMetadata] = useState<TableMetadata | null>(null);
     const [connections, setConnections] = useState<any[]>([]);
@@ -60,7 +60,7 @@ export const ConnectionList: React.FC = () => {
         };
         init();
         fetchConnections();
-    }, []);
+    }, [currentTeamId]);
 
     const fetchConnections = async () => {
         try {
@@ -325,8 +325,8 @@ export const ConnectionList: React.FC = () => {
                                             className="btn-primary"
                                             style={{
                                                 flex: 1,
-                                                opacity: (!isVerified && !isTesting) || !isAdmin ? 0.5 : 1,
-                                                cursor: (!isVerified && !isTesting) || !isAdmin ? 'not-allowed' : 'pointer',
+                                                opacity: (!isVerified && !isTesting) || !hasPermission('PLATFORM_ADMIN') ? 0.5 : 1,
+                                                cursor: (!isVerified && !isTesting) || !hasPermission('PLATFORM_ADMIN') ? 'not-allowed' : 'pointer',
                                                 display: canManage ? 'block' : 'none'
                                             }}
                                         >

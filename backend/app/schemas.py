@@ -92,6 +92,8 @@ class ScheduleBase(BaseModel):
     cron: str
     timezone: Optional[str] = "UTC"
     actv_ind: bool = True
+    org_id: Optional[int] = None
+    team_id: Optional[int] = None
 
 class ScheduleCreate(ScheduleBase):
     pass
@@ -251,6 +253,7 @@ class User(UserBase, AuditBase):
     team_memberships: List[TeamMember] = []
     default_team_id: Optional[int] = None
     permissions: List[str] = []
+    team_permissions: Dict[int, List[str]] = {}
 
 class Token(BaseModel):
     access_token: str

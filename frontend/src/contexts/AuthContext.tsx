@@ -120,8 +120,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const isAuthenticated = !!token;
 
     const hasPermission = (permission: string): boolean => {
-        if (!user || !user.permissions) return false;
-        return user.permissions.includes(permission) || user.permissions.includes('PLATFORM_ADMIN');
+        if (!user) return false;
+
+        // Platform Admins always have all permissions
+        if (user.permissions?.includes('PLATFORM_ADMIN')) return true;
+
+        if (currentTeamId) {
+            // Check scoped permissions for the active team focus
+            const teamPerms = (user as any).team_permissions?.[currentTeamId];
+            return teamPerms?.includes(permission) || false;
+        }
+
+        // If no team focus (All Teams), fall back to aggregated permissions
+        return user.permissions?.includes(permission) || false;
     };
 
     return (

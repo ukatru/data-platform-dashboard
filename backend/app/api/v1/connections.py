@@ -56,6 +56,13 @@ def list_connections(
     if tenant_ctx.org_id is not None:
         query = query.filter(models.ETLConnection.org_id == tenant_ctx.org_id)
     
+    # Team Filtering
+    if tenant_ctx.team_id:
+        query = query.filter(models.ETLConnection.team_id == tenant_ctx.team_id)
+    elif not tenant_ctx.has_permission(auth.Permission.PLATFORM_ADMIN):
+        user_team_ids = [m.team_id for m in tenant_ctx.user.team_memberships if m.actv_ind]
+        query = query.filter(models.ETLConnection.team_id.in_(user_team_ids))
+    
     conns = query.all()
     for c in conns:
         c.config_json = mask_secrets_on_retrieval(c.config_json)

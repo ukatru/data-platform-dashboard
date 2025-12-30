@@ -10,7 +10,8 @@ export const Dashboard: React.FC = () => {
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const res = await api.status.summary(currentTeamId);
+                // team_id is now handled by the X-Team-Id header in apiInstance
+                const res = await api.status.summary();
                 setStats(res.data);
             } catch (err) {
                 console.error('Failed to fetch stats', err);

@@ -24,11 +24,11 @@ PIPELINE_COLUMNS = [
 SCHEDULE_COLUMNS = [
     schemas.ColumnMetadata(name="id", label="ID", data_type="integer", visible=False, sortable=True),
     schemas.ColumnMetadata(name="slug", label="Slug", data_type="string", visible=True, sortable=True, width="200px"),
+    schemas.ColumnMetadata(name="team_id", label="Team ID", data_type="integer", visible=True, sortable=True, width="100px"),
     schemas.ColumnMetadata(name="cron", label="Cron Expression", data_type="string", visible=True, sortable=True, render_hint="code", width="200px"),
-    schemas.ColumnMetadata(name="timezone", label="Timezone", data_type="string", visible=True, sortable=True, width="150px"),
-    schemas.ColumnMetadata(name="actv_ind", label="Status", data_type="boolean", visible=True, sortable=True, render_hint="badge", width="120px"),
+    schemas.ColumnMetadata(name="timezone", label="Timezone", data_type="string", visible=True, sortable=True, width="120px"),
+    schemas.ColumnMetadata(name="actv_ind", label="Status", data_type="boolean", visible=True, sortable=True, render_hint="badge", width="100px"),
     schemas.ColumnMetadata(name="creat_dttm", label="Created", data_type="datetime", visible=True, sortable=True, render_hint="datetime", width="150px"),
-    schemas.ColumnMetadata(name="creat_by_nm", label="Created By", data_type="string", visible=False, sortable=True),
 ]
 
 CONNECTION_COLUMNS = [
