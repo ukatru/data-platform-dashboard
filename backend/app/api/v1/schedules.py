@@ -19,7 +19,9 @@ def list_schedules(
     tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context)
 ):
     """List schedules scoped by organization and authorized teams"""
-    query = db.query(models.ETLSchedule)
+    query = db.query(models.ETLSchedule, models.ETLTeam.team_nm, models.ETLOrg.org_code)\
+        .join(models.ETLTeam, models.ETLSchedule.team_id == models.ETLTeam.id)\
+        .join(models.ETLOrg, models.ETLSchedule.org_id == models.ETLOrg.id)
     
     if tenant_ctx.org_id is not None:
         query = query.filter(models.ETLSchedule.org_id == tenant_ctx.org_id)
@@ -32,7 +34,13 @@ def list_schedules(
         user_team_ids = [m.team_id for m in tenant_ctx.user.team_memberships if m.actv_ind]
         query = query.filter(models.ETLSchedule.team_id.in_(user_team_ids))
         
-    return query.all()
+    results = query.all()
+    schedules = []
+    for s, team_nm, org_code in results:
+        s.team_nm = team_nm
+        s.org_code = org_code
+        schedules.append(s)
+    return schedules
 
 @router.post("/", response_model=schemas.Schedule, status_code=status.HTTP_201_CREATED)
 def create_schedule(

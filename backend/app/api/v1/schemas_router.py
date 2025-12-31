@@ -20,14 +20,27 @@ def list_schemas(
     current_user: models.ETLUser = Depends(auth.require_analyst)
 ):
     """List all parameter schemas for the current organization and active team focus"""
-    query = db.query(models.ETLParamsSchema)
+    query = db.query(models.ETLParamsSchema, models.ETLTeam.team_nm, models.ETLOrg.org_code)\
+        .join(models.ETLTeam, models.ETLParamsSchema.team_id == models.ETLTeam.id)\
+        .join(models.ETLOrg, models.ETLParamsSchema.org_id == models.ETLOrg.id)
+        
     if tenant_ctx.org_id is not None:
         query = query.filter(models.ETLParamsSchema.org_id == tenant_ctx.org_id)
     
-    if tenant_ctx.team_id is not None:
+    # Team Filtering: Users can only see schemas for teams they belong to
+    if tenant_ctx.team_id:
         query = query.filter(models.ETLParamsSchema.team_id == tenant_ctx.team_id)
+    elif not tenant_ctx.has_permission(auth.Permission.PLATFORM_ADMIN):
+        user_team_ids = [m.team_id for m in tenant_ctx.user.team_memberships if m.actv_ind]
+        query = query.filter(models.ETLParamsSchema.team_id.in_(user_team_ids))
         
-    return query.all()
+    results = query.all()
+    schemas_list = []
+    for s, team_nm, org_code in results:
+        s.team_nm = team_nm
+        s.org_code = org_code
+        schemas_list.append(s)
+    return schemas_list
 
 @router.post("/", response_model=schemas.ParamsSchema, status_code=status.HTTP_201_CREATED)
 def create_schema(

@@ -95,6 +95,8 @@ class ConnectionCreate(ConnectionBase):
 
 class Connection(ConnectionBase, AuditBase):
     id: int
+    team_nm: Optional[str] = None
+    org_code: Optional[str] = None
 
 # Schedule schemas
 class ScheduleBase(BaseModel):
@@ -110,6 +112,8 @@ class ScheduleCreate(ScheduleBase):
 
 class Schedule(ScheduleBase, AuditBase):
     id: int
+    team_nm: Optional[str] = None
+    org_code: Optional[str] = None
 
 # Connection Type Schema
 class ConnTypeSchemaBase(BaseModel):
@@ -137,6 +141,8 @@ class ParamsSchemaCreate(ParamsSchemaBase):
 
 class ParamsSchema(ParamsSchemaBase, AuditBase):
     id: int
+    team_nm: Optional[str] = None
+    org_code: Optional[str] = None
 
 # Job schemas
 class JobBase(BaseModel):
@@ -165,6 +171,8 @@ class JobUpdate(BaseModel):
 class Job(JobBase, AuditBase):
     id: int
     schedule: Optional[str] = None
+    team_nm: Optional[str] = None
+    org_code: Optional[str] = None
 
 # Job Parameter schemas
 class JobParameterBase(BaseModel):

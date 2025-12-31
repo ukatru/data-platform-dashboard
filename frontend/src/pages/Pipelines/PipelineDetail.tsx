@@ -86,12 +86,6 @@ export const PipelineDetail: React.FC = () => {
           <div>
             <h3 style={{ marginBottom: '1.5rem' }}>Pipeline Configuration</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '1rem' }}>
-              <div style={{ color: 'var(--text-secondary)' }}>Source Connection:</div>
-              <div>{pipeline.source_conn_nm || 'Not configured'}</div>
-
-              <div style={{ color: 'var(--text-secondary)' }}>Target Connection:</div>
-              <div>{pipeline.target_conn_nm || 'Not configured'}</div>
-
               <div style={{ color: 'var(--text-secondary)' }}>Schedule:</div>
               <div>{pipeline.schedule_id ? `Schedule #${pipeline.schedule_id}` : pipeline.cron_schedule || 'Manual execution'}</div>
 

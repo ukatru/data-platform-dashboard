@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { api, TableMetadata } from '../../services/api';
-import { Plus, X, Eye } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { RoleGuard } from '../../components/RoleGuard';
 import { useAuth } from '../../contexts/AuthContext';
+import { DynamicTable } from '../../components/DynamicTable';
 
 export const SchemaList: React.FC = () => {
     const { currentTeamId } = useAuth();
@@ -109,39 +110,15 @@ export const SchemaList: React.FC = () => {
                 </RoleGuard>
             </div>
 
-            <div className="glass" style={{ overflowX: 'auto' }}>
-                <table style={{ minWidth: '1000px' }}>
-                    <thead>
-                        <tr>
-                            {enhancedMetadata.columns.filter(c => c.visible).map(col => (
-                                <th key={col.name} style={{ width: col.width || 'auto' }}>
-                                    {col.label}
-                                </th>
-                            ))}
-                            <th style={{ width: '100px' }}>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {schemas.map((schema) => (
-                            <tr key={schema.id}>
-                                <td style={{ fontWeight: 600 }}>{schema.job_nm}</td>
-                                <td>{schema.description || '—'}</td>
-                                <td style={{ fontSize: '0.85rem' }}>
-                                    {new Date(schema.creat_dttm).toLocaleDateString()}
-                                </td>
-                                <td>
-                                    <button
-                                        onClick={() => handleView(schema)}
-                                        style={{ color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                                    >
-                                        <Eye size={16} /> View
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+            <DynamicTable
+                metadata={enhancedMetadata.columns}
+                data={schemas}
+                onLinkClick={handleView}
+                linkColumn="job_nm"
+                primaryKey="id"
+                editRole="DPE_DEVELOPER"
+                emptyMessage="No schemas found for this team."
+            />
 
             {showModal && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

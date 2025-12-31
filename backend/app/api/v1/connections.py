@@ -52,7 +52,10 @@ def list_connections(
     current_user: models.ETLUser = Depends(auth.require_analyst)
 ):
     """List all connections for the current organization"""
-    query = db.query(models.ETLConnection)
+    query = db.query(models.ETLConnection, models.ETLTeam.team_nm, models.ETLOrg.org_code)\
+        .join(models.ETLTeam, models.ETLConnection.team_id == models.ETLTeam.id)\
+        .join(models.ETLOrg, models.ETLConnection.org_id == models.ETLOrg.id)
+        
     if tenant_ctx.org_id is not None:
         query = query.filter(models.ETLConnection.org_id == tenant_ctx.org_id)
     
@@ -63,9 +66,17 @@ def list_connections(
         user_team_ids = [m.team_id for m in tenant_ctx.user.team_memberships if m.actv_ind]
         query = query.filter(models.ETLConnection.team_id.in_(user_team_ids))
     
-    conns = query.all()
-    for c in conns:
+    results = query.all()
+    conns = []
+    for c, team_nm, org_code in results:
+        # Mask secrets
         c.config_json = mask_secrets_on_retrieval(c.config_json)
+        # Use a temporary dict to add the fields for Pydantic validation if returning whole objects
+        # Or better, iterate and set attributes if SQLAlchemy allows it on detached objects or just return dicts
+        # Since the response model is List[schemas.Connection], Pydantic will handle it if we provide objects with these attrs.
+        c.team_nm = team_nm
+        c.org_code = org_code
+        conns.append(c)
     return conns
 
 @router.post("/", response_model=schemas.Connection, status_code=status.HTTP_201_CREATED)

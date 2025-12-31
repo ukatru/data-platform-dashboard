@@ -22,8 +22,16 @@ def list_pipelines(
     current_user: models.ETLUser = Depends(auth.require_analyst)
 ):
     """List all pipelines (jobs) for the current organization"""
-    query = db.query(models.ETLJob, models.ETLSchedule.slug, models.ETLSchedule.cron)\
-        .outerjoin(models.ETLSchedule, models.ETLJob.schedule_id == models.ETLSchedule.id)
+    query = db.query(
+        models.ETLJob, 
+        models.ETLSchedule.slug, 
+        models.ETLSchedule.cron,
+        models.ETLTeam.team_nm,
+        models.ETLOrg.org_code
+    )\
+    .outerjoin(models.ETLSchedule, models.ETLJob.schedule_id == models.ETLSchedule.id)\
+    .join(models.ETLTeam, models.ETLJob.team_id == models.ETLTeam.id)\
+    .join(models.ETLOrg, models.ETLJob.org_id == models.ETLOrg.id)
     
     if tenant_ctx.org_id is not None:
         query = query.filter(models.ETLJob.org_id == tenant_ctx.org_id)
@@ -38,7 +46,7 @@ def list_pipelines(
     results = query.all()
     
     jobs = []
-    for job, slug, cron in results:
+    for job, slug, cron, team_nm, org_code in results:
         job_data = schemas.Job.model_validate(job)
         # Coalesce logic: Custom Cron > Central Schedule > Manual
         if job.cron_schedule:
@@ -47,6 +55,9 @@ def list_pipelines(
             job_data.schedule = f"{slug} ({cron})"
         else:
             job_data.schedule = "Manual"
+        
+        job_data.team_nm = team_nm
+        job_data.org_code = org_code
         jobs.append(job_data)
         
     return jobs
@@ -78,9 +89,20 @@ def create_pipeline(
     2. etl_job_parameter - initialize with empty config (optional)
     """
     # Create the job
+    # Auto-assign code_location_id if not provided
+    code_location_id = job.code_location_id
+    if not code_location_id and job.team_id:
+        # Get the first code location for this team
+        first_location = db.query(models.ETLCodeLocation).filter(
+            models.ETLCodeLocation.team_id == job.team_id
+        ).first()
+        if first_location:
+            code_location_id = first_location.id
+    
     db_job = models.ETLJob(
-        **job.model_dump(exclude={"org_id"}), 
+        **job.model_dump(exclude={"org_id", "code_location_id"}), 
         org_id=org_id,
+        code_location_id=code_location_id,
         creat_by_nm=tenant_ctx.user.username
     )
     db.add(db_job)
@@ -106,9 +128,17 @@ def get_pipeline(
     current_user: models.ETLUser = Depends(auth.require_analyst)
 ):
     """Get pipeline by ID with tenant check"""
-    query = db.query(models.ETLJob, models.ETLSchedule.slug, models.ETLSchedule.cron)\
-        .outerjoin(models.ETLSchedule, models.ETLJob.schedule_id == models.ETLSchedule.id)\
-        .filter(models.ETLJob.id == job_id)
+    query = db.query(
+        models.ETLJob, 
+        models.ETLSchedule.slug, 
+        models.ETLSchedule.cron,
+        models.ETLTeam.team_nm,
+        models.ETLOrg.org_code
+    )\
+    .outerjoin(models.ETLSchedule, models.ETLJob.schedule_id == models.ETLSchedule.id)\
+    .join(models.ETLTeam, models.ETLJob.team_id == models.ETLTeam.id)\
+    .join(models.ETLOrg, models.ETLJob.org_id == models.ETLOrg.id)\
+    .filter(models.ETLJob.id == job_id)
         
     if tenant_ctx.org_id is not None:
         query = query.filter(models.ETLJob.org_id == tenant_ctx.org_id)
@@ -118,7 +148,7 @@ def get_pipeline(
     if not result:
         raise HTTPException(status_code=404, detail="Pipeline not found")
     
-    job, slug, cron = result
+    job, slug, cron, team_nm, org_code = result
     job_data = schemas.Job.model_validate(job)
     # Coalesce logic: Custom Cron > Central Schedule > Manual
     if job.cron_schedule:
@@ -127,6 +157,9 @@ def get_pipeline(
         job_data.schedule = f"{slug} ({cron})"
     else:
         job_data.schedule = "Manual"
+    
+    job_data.team_nm = team_nm
+    job_data.org_code = org_code
         
     return job_data
 
@@ -153,7 +186,7 @@ def update_pipeline(
     db_job.updt_dttm = datetime.utcnow()
     db.commit()
     
-    return get_pipeline(db_job.id, db, current_user)
+    return get_pipeline(db_job.id, db, tenant_ctx, tenant_ctx.user)
 
 @router.delete("/{job_id}")
 def delete_pipeline(

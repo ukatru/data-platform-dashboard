@@ -9,7 +9,6 @@ export const PipelineList: React.FC = () => {
     const { currentTeamId } = useAuth();
     const [metadata, setMetadata] = useState<TableMetadata | null>(null);
     const [pipelines, setPipelines] = useState<any[]>([]);
-    const [connections, setConnections] = useState<any[]>([]);
     const [schedules, setSchedules] = useState<any[]>([]);
     const [search, setSearch] = useState('');
     const [showModal, setShowModal] = useState(false);
@@ -17,8 +16,6 @@ export const PipelineList: React.FC = () => {
     const [formData, setFormData] = useState({
         job_nm: '',
         invok_id: '',
-        source_conn_nm: '',
-        target_conn_nm: '',
         schedule_id: undefined as number | undefined,
         cron_schedule: '',
         partition_start_dt: '',
@@ -51,14 +48,10 @@ export const PipelineList: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        // Fetch connections and schedules for dropdowns
+        // Fetch schedules for dropdowns
         const fetchReferenceData = async () => {
             try {
-                const [connRes, schedRes] = await Promise.all([
-                    api.connections.list(),
-                    api.schedules.list()
-                ]);
-                setConnections(connRes.data);
+                const schedRes = await api.schedules.list();
                 setSchedules(schedRes.data);
             } catch (err) {
                 console.error('Failed to fetch reference data', err);
@@ -85,8 +78,6 @@ export const PipelineList: React.FC = () => {
         setFormData({
             job_nm: '',
             invok_id: '',
-            source_conn_nm: '',
-            target_conn_nm: '',
             schedule_id: undefined,
             cron_schedule: '',
             partition_start_dt: '',
@@ -102,8 +93,6 @@ export const PipelineList: React.FC = () => {
         setFormData({
             job_nm: pipeline.job_nm,
             invok_id: pipeline.invok_id,
-            source_conn_nm: pipeline.source_conn_nm || '',
-            target_conn_nm: pipeline.target_conn_nm || '',
             schedule_id: pipeline.schedule_id,
             cron_schedule: pipeline.cron_schedule || '',
             partition_start_dt: pipeline.partition_start_dt ? new Date(pipeline.partition_start_dt).toISOString().split('T')[0] : '',
@@ -119,8 +108,6 @@ export const PipelineList: React.FC = () => {
         try {
             const payload = {
                 ...formData,
-                source_conn_nm: formData.source_conn_nm || null,
-                target_conn_nm: formData.target_conn_nm || null,
                 schedule_id: useCustomCron ? null : (formData.schedule_id || null),
                 cron_schedule: useCustomCron ? formData.cron_schedule : null,
                 partition_start_dt: formData.partition_start_dt ? formData.partition_start_dt : null,
@@ -265,45 +252,6 @@ export const PipelineList: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                                    Source Connection
-                                </label>
-                                <select
-                                    value={formData.source_conn_nm}
-                                    onChange={(e) => setFormData({ ...formData, source_conn_nm: e.target.value })}
-                                >
-                                    <option value="">-- Select Source --</option>
-                                    {connections.map(conn => (
-                                        <option key={conn.id} value={conn.conn_nm}>
-                                            {conn.conn_nm} ({conn.conn_type})
-                                        </option>
-                                    ))}
-                                </select>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                                    Where data is extracted from
-                                </div>
-                            </div>
-
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                                    Target Connection
-                                </label>
-                                <select
-                                    value={formData.target_conn_nm}
-                                    onChange={(e) => setFormData({ ...formData, target_conn_nm: e.target.value })}
-                                >
-                                    <option value="">-- Select Target --</option>
-                                    {connections.map(conn => (
-                                        <option key={conn.id} value={conn.conn_nm}>
-                                            {conn.conn_nm} ({conn.conn_type})
-                                        </option>
-                                    ))}
-                                </select>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                                    Where data is loaded to
-                                </div>
-                            </div>
 
                             <div className="form-group">
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
