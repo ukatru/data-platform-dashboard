@@ -108,3 +108,21 @@ def get_schema_metadata(current_user: models.ETLUser = Depends(auth.require_anal
         columns=SCHEMA_COLUMNS,
         primary_key="id"
     )
+
+# Repository (Code Location) columns
+REPOSITORY_COLUMNS = [
+    schemas.ColumnMetadata(name="id", label="ID", data_type="integer", visible=False, sortable=True),
+    schemas.ColumnMetadata(name="location_nm", label="Repository", data_type="string", visible=True, sortable=True, render_hint="link", width="250px"),
+    schemas.ColumnMetadata(name="team_nm", label="Team Owner", data_type="string", visible=True, sortable=True, width="150px"),
+    schemas.ColumnMetadata(name="repo_url", label="URL", data_type="string", visible=True, sortable=True, render_hint="external_link", width="300px"),
+    schemas.ColumnMetadata(name="creat_dttm", label="Created", data_type="datetime", visible=True, sortable=True, width="150px"),
+]
+
+@router.get("/repositories", response_model=schemas.TableMetadata)
+def get_repository_metadata(current_user: models.ETLUser = Depends(auth.require_analyst)):
+    """Get column metadata for repositories table"""
+    return schemas.TableMetadata(
+        table_name="repositories",
+        columns=REPOSITORY_COLUMNS,
+        primary_key="id"
+    )

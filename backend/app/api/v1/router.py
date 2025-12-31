@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from . import connections, schedules, schemas_router, pipelines, status, metadata, connections_metadata, auth, users, management, reports
+from . import connections, schedules, schemas_router, pipelines, status, metadata, connections_metadata, auth, users, management, reports, repositories
 
 api_router = APIRouter()
 
@@ -14,6 +14,7 @@ api_router.include_router(connections.router, prefix="/connections", tags=["Conn
 api_router.include_router(schedules.router, prefix="/schedules", tags=["Schedules"])
 api_router.include_router(schemas_router.router, prefix="/schemas", tags=["Schemas"])
 api_router.include_router(pipelines.router, prefix="/pipelines", tags=["Pipelines"])
+api_router.include_router(repositories.router, prefix="/repositories", tags=["Repositories"])
 api_router.include_router(status.router, prefix="/status", tags=["Status"])
 api_router.include_router(management.router, prefix="/management", tags=["Management"])
 api_router.include_router(reports.router, prefix="/reports", tags=["Reports"])

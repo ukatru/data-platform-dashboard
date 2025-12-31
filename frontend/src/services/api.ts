@@ -56,6 +56,7 @@ export const api = {
         connections: () => apiInstance.get(`${API_BASE}/metadata/connections`),
         status: () => apiInstance.get(`${API_BASE}/metadata/status`),
         schemas: () => apiInstance.get(`${API_BASE}/metadata/schemas`),
+        repositories: () => apiInstance.get(`${API_BASE}/metadata/repositories`),
     },
 
     // Connections
@@ -87,6 +88,15 @@ export const api = {
         get: (id: number) => apiInstance.get(`${API_BASE}/schemas/${id}`),
         getByJob: (jobName: string) => apiInstance.get(`${API_BASE}/schemas/by-job/${jobName}`),
         create: (data: any) => apiInstance.post(`${API_BASE}/schemas/`, data),
+    },
+
+    // Repositories (Code Locations)
+    repositories: {
+        list: () => apiInstance.get(`${API_BASE}/repositories/`),
+        get: (id: number) => apiInstance.get(`${API_BASE}/repositories/${id}`),
+        create: (data: any) => apiInstance.post(`${API_BASE}/repositories/`, data),
+        update: (id: number, data: any) => apiInstance.put(`${API_BASE}/repositories/${id}`, data),
+        delete: (id: number) => apiInstance.delete(`${API_BASE}/repositories/${id}`),
     },
 
     // Pipelines
@@ -144,7 +154,7 @@ export interface ColumnMetadata {
     visible: boolean;
     sortable: boolean;
     filterable: boolean;
-    render_hint?: 'text' | 'code' | 'badge' | 'datetime' | 'json' | 'link';
+    render_hint?: 'text' | 'code' | 'badge' | 'datetime' | 'json' | 'link' | 'external_link';
     width?: string;
 }
 

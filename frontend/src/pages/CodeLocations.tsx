@@ -1,57 +1,108 @@
 import React, { useState, useEffect } from 'react';
-import { api } from '../services/api';
+import { api, TableMetadata } from '../services/api';
+import { DynamicTable } from '../components/DynamicTable';
+import { Plus, X } from 'lucide-react';
+import { RoleGuard } from '../components/RoleGuard';
 import { useAuth } from '../contexts/AuthContext';
-import { GitBranch, Plus, X, Globe, Shield } from 'lucide-react';
 
 export const CodeLocationManagement: React.FC = () => {
-    const [locations, setLocations] = useState<any[]>([]);
+    const { currentTeamId } = useAuth();
+    const [metadata, setMetadata] = useState<TableMetadata | null>(null);
+    const [repositories, setRepositories] = useState<any[]>([]);
     const [teams, setTeams] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
+    const [editingRepo, setEditingRepo] = useState<any>(null);
     const [formData, setFormData] = useState({
         location_nm: '',
         repo_url: '',
         team_id: 0
     });
+    const [error, setError] = useState<string | null>(null);
 
-    const { currentOrg } = useAuth();
-
-    const fetchData = async () => {
-        setLoading(true);
-        try {
-            const [locsRes, teamsRes] = await Promise.all([
-                api.management.listCodeLocations(),
-                api.management.listTeams()
-            ]);
-            setLocations(locsRes.data);
-            setTeams(teamsRes.data);
-            if (teamsRes.data.length > 0) {
-                setFormData(prev => ({ ...prev, team_id: teamsRes.data[0].id }));
+    useEffect(() => {
+        const fetchMetadata = async () => {
+            try {
+                const res = await api.metadata.repositories();
+                setMetadata(res.data);
+            } catch (err: any) {
+                console.error('Failed to fetch metadata', err);
+                if (err.response?.status === 403) {
+                    setError("You do not have permission to view repositories.");
+                } else {
+                    setError("Failed to load repository metadata.");
+                }
             }
+        };
+        fetchMetadata();
+    }, []);
+
+    const fetchRepositories = async () => {
+        try {
+            const res = await api.repositories.list();
+            setRepositories(res.data);
         } catch (err) {
-            console.error('Failed to fetch data', err);
-        } finally {
-            setLoading(false);
+            console.error('Failed to fetch repositories', err);
         }
     };
 
     useEffect(() => {
-        fetchData();
+        fetchRepositories();
+    }, [currentTeamId]);
+
+    useEffect(() => {
+        const fetchTeams = async () => {
+            try {
+                const res = await api.management.listTeams();
+                setTeams(res.data);
+                if (res.data.length > 0 && !formData.team_id) {
+                    setFormData(prev => ({ ...prev, team_id: res.data[0].id }));
+                }
+            } catch (err) {
+                console.error('Failed to fetch teams', err);
+            }
+        };
+        fetchTeams();
     }, []);
+
+    const handleCreate = () => {
+        setEditingRepo(null);
+        setFormData({
+            location_nm: '',
+            repo_url: '',
+            team_id: teams.length > 0 ? teams[0].id : 0
+        });
+        setShowModal(true);
+    };
+
+    const handleEdit = (repo: any) => {
+        setEditingRepo(repo);
+        setFormData({
+            location_nm: repo.location_nm,
+            repo_url: repo.repo_url || '',
+            team_id: repo.team_id
+        });
+        setShowModal(true);
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await api.management.registerCodeLocation(formData);
+            if (editingRepo) {
+                await api.repositories.update(editingRepo.id, {
+                    location_nm: formData.location_nm,
+                    repo_url: formData.repo_url || null
+                });
+            } else {
+                await api.repositories.create(formData);
+            }
             setShowModal(false);
-            setFormData({ ...formData, location_nm: '', repo_url: '' });
-            fetchData();
+            fetchRepositories();
         } catch (err: any) {
             const errorData = err.response?.data?.detail;
             let errorMessage = '';
 
             if (Array.isArray(errorData)) {
-                errorMessage = errorData.map(e => `${e.loc.join('.')}: ${e.msg}`).join(', ');
+                errorMessage = errorData.map((e: any) => `${e.loc.join('.')}: ${e.msg}`).join(', ');
             } else if (typeof errorData === 'string') {
                 errorMessage = errorData;
             } else {
@@ -62,8 +113,30 @@ export const CodeLocationManagement: React.FC = () => {
         }
     };
 
-    if (loading && locations.length === 0) {
-        return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading repositories...</div>;
+    const handleDelete = async (repo: any) => {
+        if (!window.confirm(`Delete repository "${repo.location_nm}"? This cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            await api.repositories.delete(repo.id);
+            fetchRepositories();
+        } catch (err: any) {
+            const errorMessage = err.response?.data?.detail || err.message;
+            alert(`Error deleting repository: ${errorMessage}`);
+        }
+    };
+
+    if (error) {
+        return (
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--error)' }}>
+                {error}
+            </div>
+        );
+    }
+
+    if (!metadata) {
+        return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;
     }
 
     return (
@@ -72,71 +145,31 @@ export const CodeLocationManagement: React.FC = () => {
                 <div>
                     <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem' }}>Code Locations</h1>
                     <p style={{ color: 'var(--text-secondary)' }}>
-                        Register and manage Dagster repositories for <strong>{currentOrg?.org_nm}</strong>
+                        Register and manage Dagster repositories for Enterprise Data Services
                     </p>
                 </div>
-                <button className="btn-primary" onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Plus size={20} /> Register Repository
-                </button>
+                <RoleGuard requiredPermission="CAN_EDIT_PIPELINES">
+                    <button className="btn-primary" onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Plus size={20} /> Register Repository
+                    </button>
+                </RoleGuard>
             </div>
 
-            <div className="glass" style={{ overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                        <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--glass-border)' }}>
-                            <th style={{ padding: '1.25rem' }}>Repository</th>
-                            <th style={{ padding: '1.25rem' }}>Team Owner</th>
-                            <th style={{ padding: '1.25rem' }}>URL</th>
-                            <th style={{ padding: '1.25rem' }}>Created</th>
-                            <th style={{ padding: '1.25rem' }}>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {locations.map(loc => (
-                            <tr key={loc.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                                <td style={{ padding: '1.25rem' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                        <div style={{ color: 'var(--accent-primary)' }}><GitBranch size={20} /></div>
-                                        <div style={{ fontWeight: 600 }}>{loc.location_nm}</div>
-                                    </div>
-                                </td>
-                                <td style={{ padding: '1.25rem' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <Shield size={14} color="var(--text-tertiary)" />
-                                        <span>{loc.team?.team_nm || 'Unassigned'}</span>
-                                    </div>
-                                </td>
-                                <td style={{ padding: '1.25rem' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                                        <Globe size={14} />
-                                        <span style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                            {loc.repo_url}
-                                        </span>
-                                    </div>
-                                </td>
-                                <td style={{ padding: '1.25rem', color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>
-                                    {loc.creat_dttm ? new Date(loc.creat_dttm).toLocaleDateString() : 'N/A'}
-                                </td>
-                                <td style={{ padding: '1.25rem' }}>
-                                    <button
-                                        className="btn-secondary"
-                                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
-                                        onClick={() => alert('Repository synchronization logs and Dagster deployment details will be integrated in Phase 4: Metadata Factory Integration.')}
-                                    >
-                                        Details
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+            <DynamicTable
+                metadata={metadata.columns}
+                data={repositories}
+                primaryKey="id"
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+            />
 
             {showModal && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <div className="glass" style={{ width: '500px', padding: '2.5rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                            <h3 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Register Repository</h3>
+                            <h3 style={{ fontSize: '1.5rem', fontWeight: 700 }}>
+                                {editingRepo ? 'Edit Repository' : 'Register Repository'}
+                            </h3>
                             <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}><X /></button>
                         </div>
 
@@ -147,43 +180,37 @@ export const CodeLocationManagement: React.FC = () => {
                                     required
                                     value={formData.location_nm}
                                     onChange={e => setFormData({ ...formData, location_nm: e.target.value })}
-                                    placeholder="e.g. core-pipelines-repo"
+                                    placeholder="e.g. example-pipelines"
                                 />
                             </div>
 
                             <div className="form-group">
                                 <label>Repository URL / Source</label>
                                 <input
-                                    required
                                     value={formData.repo_url}
                                     onChange={e => setFormData({ ...formData, repo_url: e.target.value })}
                                     placeholder="e.g. https://github.com/org/repo"
                                 />
                             </div>
 
-                            <div className="form-group">
-                                <label>Owning Team</label>
-                                <select
-                                    required
-                                    value={formData.team_id}
-                                    onChange={e => setFormData({ ...formData, team_id: parseInt(e.target.value) })}
-                                    style={{
-                                        background: 'rgba(0,0,0,0.2)',
-                                        border: '1px solid var(--glass-border)',
-                                        borderRadius: '8px',
-                                        padding: '0.75rem',
-                                        color: 'white'
-                                    }}
-                                >
-                                    {teams.map(t => (
-                                        <option key={t.id} value={t.id}>{t.team_nm}</option>
-                                    ))}
-                                </select>
-                            </div>
+                            {!editingRepo && (
+                                <div className="form-group">
+                                    <label>Owning Team</label>
+                                    <select
+                                        required
+                                        value={formData.team_id}
+                                        onChange={e => setFormData({ ...formData, team_id: parseInt(e.target.value) })}
+                                    >
+                                        {teams.map(t => (
+                                            <option key={t.id} value={t.id}>{t.team_nm}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
 
                             <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
                                 <button type="submit" className="btn-primary" style={{ flex: 1 }}>
-                                    Register
+                                    {editingRepo ? 'Update' : 'Register'}
                                 </button>
                                 <button type="button" onClick={() => setShowModal(false)} className="btn-secondary" style={{ flex: 1 }}>
                                     Cancel

@@ -20,7 +20,7 @@ class ColumnMetadata(BaseModel):
     visible: bool = True
     sortable: bool = True
     filterable: bool = False
-    render_hint: Optional[Literal["text", "code", "badge", "datetime", "json", "link"]] = None
+    render_hint: Optional[Literal["text", "code", "badge", "datetime", "json", "link", "external_link"]] = None
     width: Optional[str] = None  # e.g., "200px", "auto"
 
 class TableMetadata(BaseModel):
@@ -126,6 +126,27 @@ class ConnTypeSchemaCreate(ConnTypeSchemaBase):
 
 class ConnTypeSchema(ConnTypeSchemaBase, AuditBase):
     id: int
+
+# Code Location (Repository) schemas
+class CodeLocationBase(BaseModel):
+    location_nm: str
+    team_id: int
+    repo_url: Optional[str] = None
+
+class CodeLocationCreate(CodeLocationBase):
+    pass
+
+class CodeLocationUpdate(BaseModel):
+    location_nm: Optional[str] = None
+    repo_url: Optional[str] = None
+
+class CodeLocation(CodeLocationBase, AuditBase):
+    id: int
+    team_nm: Optional[str] = None
+    org_code: Optional[str] = None
+
+    class Config:
+        from_attributes = True
 
 # Parameter Schema (JSON Schema Registry)
 class ParamsSchemaBase(BaseModel):

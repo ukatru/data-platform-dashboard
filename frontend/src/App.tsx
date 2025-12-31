@@ -127,7 +127,7 @@ function AppRoutes() {
             } />
 
             <Route path="/code-locations" element={
-                <ProtectedRoute requiredPermission="CAN_EDIT_PIPELINES">
+                <ProtectedRoute requiredPermission="CAN_VIEW_CONFIG">
                     <Layout><CodeLocationManagement /></Layout>
                 </ProtectedRoute>
             } />
