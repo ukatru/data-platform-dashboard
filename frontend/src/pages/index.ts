@@ -5,7 +5,7 @@ export * from './Pipelines/PipelineList';
 export * from './Pipelines/PipelineDetail';
 export * from './Connections/ConnectionList';
 export * from './Schedules/ScheduleList';
-export * from './Schemas/SchemaList';
+export * from './Jobs/JobDefinitionList';
 export * from './Status/StatusDashboard';
 export * from './Profile';
 export * from './Teams';

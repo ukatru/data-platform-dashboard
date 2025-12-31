@@ -1,21 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { api, TableMetadata } from '../../services/api';
-import { DynamicTable } from '../../components/DynamicTable';
-import { Plus, Search, X } from 'lucide-react';
 import { RoleGuard } from '../../components/RoleGuard';
 import { useAuth } from '../../contexts/AuthContext';
+import { Plus, Search, X, ChevronRight, ChevronDown, FileCode, Play } from 'lucide-react';
+import { JobDefinitionModal } from './JobDefinitionModal';
 
 export const PipelineList: React.FC = () => {
     const { currentTeamId } = useAuth();
     const [metadata, setMetadata] = useState<TableMetadata | null>(null);
-    const [pipelines, setPipelines] = useState<any[]>([]);
+    const [definitions, setDefinitions] = useState<any[]>([]);
+    const [instances, setInstances] = useState<any[]>([]);
     const [schedules, setSchedules] = useState<any[]>([]);
+    const [expandedJobs, setExpandedJobs] = useState<Set<number>>(new Set());
     const [search, setSearch] = useState('');
-    const [showModal, setShowModal] = useState(false);
-    const [editingPipeline, setEditingPipeline] = useState<any>(null);
+    const [showInstanceModal, setShowInstanceModal] = useState(false);
+    const [viewingDefinition, setViewingDefinition] = useState<any | null>(null);
+    const [editingInstance, setEditingInstance] = useState<any>(null);
+
+    // Form state for creating/editing an instance
     const [formData, setFormData] = useState({
-        job_nm: '',
-        invok_id: '',
+        job_definition_id: 0,
+        instance_id: '',
+        description: '',
         schedule_id: undefined as number | undefined,
         cron_schedule: '',
         partition_start_dt: '',
@@ -33,15 +39,14 @@ export const PipelineList: React.FC = () => {
     useEffect(() => {
         const fetchMetadata = async () => {
             try {
-                const res = await api.metadata.pipelines();
-                setMetadata(res.data);
+                const [instMeta] = await Promise.all([
+                    api.metadata.pipelines(),
+                    api.metadata.jobs()
+                ]);
+                setMetadata(instMeta.data);
             } catch (err: any) {
                 console.error('Failed to fetch metadata', err);
-                if (err.response?.status === 403) {
-                    setError("You do not have permission to view pipelines.");
-                } else {
-                    setError("Failed to load pipeline metadata.");
-                }
+                setError("Failed to load pipeline metadata.");
             }
         };
         fetchMetadata();
@@ -60,24 +65,33 @@ export const PipelineList: React.FC = () => {
         fetchReferenceData();
     }, [currentTeamId]);
 
-    const fetchPipelines = async () => {
+    const fetchData = async () => {
         try {
-            const res = await api.pipelines.list();
-            setPipelines(res.data);
+            const [defRes, instRes] = await Promise.all([
+                api.jobs.list(),
+                api.pipelines.list()
+            ]);
+            setDefinitions(defRes.data);
+            setInstances(instRes.data);
+
+            // Auto-expand jobs with instances
+            const withInstances = new Set<number>(instRes.data.map((i: any) => i.job_definition_id as number));
+            setExpandedJobs(withInstances);
         } catch (err) {
-            console.error('Failed to fetch pipelines', err);
+            console.error('Failed to fetch data', err);
         }
     };
 
     useEffect(() => {
-        fetchPipelines();
+        fetchData();
     }, [currentTeamId]);
 
-    const handleCreate = () => {
-        setEditingPipeline(null);
+    const handleCreateInstance = (defId?: number) => {
+        setEditingInstance(null);
         setFormData({
-            job_nm: '',
-            invok_id: '',
+            job_definition_id: defId || (definitions[0]?.id || 0),
+            instance_id: '',
+            description: '',
             schedule_id: undefined,
             cron_schedule: '',
             partition_start_dt: '',
@@ -85,25 +99,26 @@ export const PipelineList: React.FC = () => {
         });
         setUseCustomCron(false);
         setIsCreatingSchedule(false);
-        setShowModal(true);
+        setShowInstanceModal(true);
     };
 
-    const handleEdit = (pipeline: any) => {
-        setEditingPipeline(pipeline);
+    const handleEditInstance = (instance: any) => {
+        setEditingInstance(instance);
         setFormData({
-            job_nm: pipeline.job_nm,
-            invok_id: pipeline.invok_id,
-            schedule_id: pipeline.schedule_id,
-            cron_schedule: pipeline.cron_schedule || '',
-            partition_start_dt: pipeline.partition_start_dt ? new Date(pipeline.partition_start_dt).toISOString().split('T')[0] : '',
-            actv_ind: pipeline.actv_ind !== false,
+            job_definition_id: instance.job_definition_id,
+            instance_id: instance.instance_id,
+            description: instance.description || '',
+            schedule_id: instance.schedule_id,
+            cron_schedule: instance.cron_schedule || '',
+            partition_start_dt: instance.partition_start_dt ? new Date(instance.partition_start_dt).toISOString().split('T')[0] : '',
+            actv_ind: instance.actv_ind !== false,
         });
-        setUseCustomCron(!!pipeline.cron_schedule);
+        setUseCustomCron(!!instance.cron_schedule);
         setIsCreatingSchedule(false);
-        setShowModal(true);
+        setShowInstanceModal(true);
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmitInstance = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
             const payload = {
@@ -111,18 +126,17 @@ export const PipelineList: React.FC = () => {
                 schedule_id: useCustomCron ? null : (formData.schedule_id || null),
                 cron_schedule: useCustomCron ? formData.cron_schedule : null,
                 partition_start_dt: formData.partition_start_dt ? formData.partition_start_dt : null,
-                actv_ind: formData.actv_ind,
             };
 
-            if (editingPipeline) {
-                await api.pipelines.update(editingPipeline.id, payload);
+            if (editingInstance) {
+                await api.pipelines.update(editingInstance.id, payload);
             } else {
                 await api.pipelines.create(payload);
             }
-            setShowModal(false);
-            fetchPipelines();
+            setShowInstanceModal(false);
+            fetchData();
         } catch (err: any) {
-            alert(`Failed to save pipeline: ${err.response?.data?.detail || err.message}`);
+            alert(`Failed to save instance: ${err.response?.data?.detail || err.message}`);
         }
     };
 
@@ -145,18 +159,25 @@ export const PipelineList: React.FC = () => {
         }
     };
 
-    const handleDelete = async (row: any) => {
-        if (!confirm(`Delete pipeline "${row.job_nm}"? This will also delete associated parameters. This cannot be undone.`)) return;
+    const handleDeleteInstance = async (row: any) => {
+        if (!confirm(`Delete instance "${row.instance_id}"? This cannot be undone.`)) return;
         try {
             await api.pipelines.delete(row.id);
-            fetchPipelines();
+            fetchData();
         } catch (err: any) {
             alert(`Failed to delete: ${err.response?.data?.detail || err.message}`);
         }
     };
 
-    const filtered = pipelines.filter(p =>
-        p.job_nm.toLowerCase().includes(search.toLowerCase())
+    const toggleJobExpansion = (jobId: number) => {
+        const next = new Set(expandedJobs);
+        if (next.has(jobId)) next.delete(jobId);
+        else next.add(jobId);
+        setExpandedJobs(next);
+    };
+
+    const filteredDefinitions = definitions.filter(d =>
+        d.job_nm.toLowerCase().includes(search.toLowerCase())
     );
 
     if (error) {
@@ -180,11 +201,11 @@ export const PipelineList: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <div>
                     <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Pipelines</h1>
-                    <p style={{ color: 'var(--text-secondary)' }}>Manage ETL pipeline configurations</p>
+                    <p style={{ color: 'var(--text-secondary)' }}>Discoverable jobs (YAML Source) and configured instances</p>
                 </div>
                 <RoleGuard requiredRole="DPE_DEVELOPER">
-                    <button className="btn-primary" onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <Plus size={20} /> New Pipeline
+                    <button className="btn-primary" onClick={() => handleCreateInstance()} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Plus size={20} /> Register Instance
                     </button>
                 </RoleGuard>
             </div>
@@ -193,65 +214,202 @@ export const PipelineList: React.FC = () => {
                 <Search size={20} color="var(--text-secondary)" />
                 <input
                     type="text"
-                    placeholder="Search pipelines..."
+                    placeholder="Search by Job name..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     style={{ background: 'transparent', border: 'none', outline: 'none', width: '100%' }}
                 />
             </div>
 
-            <DynamicTable
-                metadata={metadata.columns}
-                data={filtered}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                editRole="DPE_DEVELOPER"
-                deleteRole="DPE_PLATFORM_ADMIN"
-                linkColumn="job_nm"
-                linkPath={(row) => `/pipelines/${row.id}`}
-                primaryKey={metadata.primary_key}
-                emptyMessage="No pipelines found for this team."
-            />
+            {/* Hierarchical Table */}
+            <div className="glass" style={{ overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                        <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--glass-border)' }}>
+                            <th style={{ width: '40px' }}></th>
+                            <th style={{ textAlign: 'left', padding: '1rem' }}>Job Source / Instance</th>
+                            <th style={{ textAlign: 'left', padding: '1rem' }}>Team</th>
+                            <th style={{ textAlign: 'left', padding: '1rem' }}>Schedule</th>
+                            <th style={{ textAlign: 'left', padding: '1rem' }}>Status</th>
+                            <th style={{ textAlign: 'left', padding: '1rem' }}>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filteredDefinitions.length === 0 ? (
+                            <tr>
+                                <td colSpan={6} style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-tertiary)' }}>
+                                    No jobs found for this team. Check your metadata.yaml sync.
+                                </td>
+                            </tr>
+                        ) : filteredDefinitions.map(job => {
+                            const jobInstances = instances.filter(i => i.job_definition_id === job.id);
+                            const isExpanded = expandedJobs.has(job.id);
 
-            {showModal && (
+                            return (
+                                <React.Fragment key={job.id}>
+                                    {/* Parent Row: Job Definition */}
+                                    <tr style={{
+                                        borderBottom: isExpanded ? 'none' : '1px solid var(--glass-border)',
+                                        background: 'rgba(255,255,255,0.01)',
+                                        transition: 'background 0.2s'
+                                    }}>
+                                        <td style={{ padding: '1rem', textAlign: 'center' }}>
+                                            {jobInstances.length > 0 && (
+                                                <button onClick={() => toggleJobExpansion(job.id)} style={{ color: 'var(--text-secondary)' }}>
+                                                    {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                                                </button>
+                                            )}
+                                        </td>
+                                        <td style={{ padding: '1rem' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                <div style={{ color: 'var(--accent-primary)' }}><FileCode size={18} /></div>
+                                                <div>
+                                                    <div style={{ fontWeight: 700, fontSize: '1.05rem' }}>{job.job_nm}</div>
+                                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginTop: '0.2rem' }}>{job.description || 'No description provided'}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td style={{ padding: '1rem' }}>
+                                            <div style={{ fontSize: '0.85rem' }}>
+                                                <span style={{ fontWeight: 600 }}>{job.team_nm}</span>
+                                            </div>
+                                        </td>
+                                        <td style={{ padding: '1rem' }}>
+                                            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                                {job.asset_selection?.slice(0, 2).map((a: string) => (
+                                                    <span key={a} className="badge" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', opacity: 0.7 }}>{a}</span>
+                                                ))}
+                                                {job.asset_selection?.length > 2 && <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>+{job.asset_selection.length - 2} more</span>}
+                                            </div>
+                                        </td>
+                                        <td style={{ padding: '1rem' }}>
+                                            <span className="status-badge" style={{ opacity: 0.6 }}>DEFINITION</span>
+                                        </td>
+                                        <td style={{ padding: '1rem' }}>
+                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                <button className="btn-secondary" style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }} onClick={() => setViewingDefinition(job)}>
+                                                    View YAML
+                                                </button>
+                                                <RoleGuard requiredRole="DPE_DEVELOPER">
+                                                    <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }} onClick={() => handleCreateInstance(job.id)}>
+                                                        Add Instance
+                                                    </button>
+                                                </RoleGuard>
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    {/* Sub-Rows: Job Instances */}
+                                    {isExpanded && jobInstances.map(inst => (
+                                        <tr key={inst.id} style={{
+                                            background: 'rgba(255,255,255,0.03)',
+                                            borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                            fontSize: '0.9rem'
+                                        }}>
+                                            <td></td>
+                                            <td style={{ padding: '0.75rem 1rem 0.75rem 3rem' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-secondary)' }}></div>
+                                                    <a href={`/pipelines/${inst.id}`} style={{ fontWeight: 600, color: 'var(--accent-secondary)', textDecoration: 'none' }}>
+                                                        {inst.instance_id}
+                                                    </a>
+                                                </div>
+                                            </td>
+                                            <td style={{ padding: '0.75rem 1rem', color: 'var(--text-tertiary)' }}>
+                                                —
+                                            </td>
+                                            <td style={{ padding: '0.75rem 1rem' }}>
+                                                <code style={{ fontSize: '0.8rem', background: 'var(--glass-bg)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>
+                                                    {inst.schedule_display}
+                                                </code>
+                                            </td>
+                                            <td style={{ padding: '0.75rem 1rem' }}>
+                                                <span className={inst.actv_ind ? 'status-success' : 'status-error'} style={{ fontSize: '0.75rem' }}>
+                                                    {inst.actv_ind ? 'Active' : 'Paused'}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: '0.75rem 1rem' }}>
+                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                    <RoleGuard requiredRole="DPE_DEVELOPER">
+                                                        <button onClick={() => handleEditInstance(inst)} style={{ color: 'var(--accent-primary)', opacity: 0.8 }} title="Edit Instance">
+                                                            <Play size={14} style={{ transform: 'rotate(90deg)' }} />
+                                                        </button>
+                                                    </RoleGuard>
+                                                    <RoleGuard requiredRole="DPE_PLATFORM_ADMIN">
+                                                        <button onClick={() => handleDeleteInstance(inst)} style={{ color: 'var(--error)', opacity: 0.6 }} title="Delete Instance">
+                                                            <X size={14} />
+                                                        </button>
+                                                    </RoleGuard>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </React.Fragment>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Modals */}
+            {viewingDefinition && (
+                <JobDefinitionModal
+                    definition={viewingDefinition}
+                    onClose={() => setViewingDefinition(null)}
+                />
+            )}
+
+            {showInstanceModal && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <div className="glass" style={{ width: '600px', padding: '2rem', maxHeight: '90vh', overflowY: 'auto' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                            <h3>{editingPipeline ? 'Edit Pipeline' : 'New Pipeline'}</h3>
-                            <button onClick={() => setShowModal(false)}><X /></button>
+                            <h3>{editingInstance ? 'Edit Instance' : 'New Job Instance'}</h3>
+                            <button onClick={() => setShowInstanceModal(false)}><X /></button>
                         </div>
 
-                        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        <form onSubmit={handleSubmitInstance} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                             <div>
                                 <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                                    Pipeline Name *
+                                    Parent Job Definition *
+                                </label>
+                                <select
+                                    disabled={!!editingInstance}
+                                    required
+                                    value={formData.job_definition_id}
+                                    onChange={(e) => setFormData({ ...formData, job_definition_id: parseInt(e.target.value) })}
+                                >
+                                    <option value={0} disabled>-- Select a Job --</option>
+                                    {definitions.map(d => (
+                                        <option key={d.id} value={d.id}>{d.job_nm} ({d.team_nm})</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                    Instance ID *
                                 </label>
                                 <input
                                     required
-                                    value={formData.job_nm}
-                                    onChange={(e) => setFormData({ ...formData, job_nm: e.target.value })}
-                                    placeholder="e.g. sales_daily_load"
+                                    value={formData.instance_id}
+                                    onChange={(e) => setFormData({ ...formData, instance_id: e.target.value })}
+                                    placeholder="e.g. PROD_DAILY_01"
                                 />
                                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                                    Unique identifier for this pipeline
+                                    Environment or deployment specific identifier
                                 </div>
                             </div>
 
                             <div>
                                 <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                                    Invocation ID *
+                                    Description (Optional)
                                 </label>
                                 <input
-                                    required
-                                    value={formData.invok_id}
-                                    onChange={(e) => setFormData({ ...formData, invok_id: e.target.value })}
-                                    placeholder="e.g. PROD_001"
+                                    value={formData.description}
+                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                    placeholder="e.g. Daily production load for North America"
                                 />
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                                    Environment or instance identifier
-                                </div>
                             </div>
-
 
                             <div className="form-group">
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
@@ -287,7 +445,6 @@ export const PipelineList: React.FC = () => {
                                             className="btn-secondary"
                                             style={{ padding: '0 0.75rem' }}
                                             onClick={() => setIsCreatingSchedule(!isCreatingSchedule)}
-                                            title="Register new schedule"
                                         >
                                             <Plus size={16} />
                                         </button>
@@ -299,54 +456,15 @@ export const PipelineList: React.FC = () => {
                                         placeholder="e.g. 0 0 * * *"
                                     />
                                 )}
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                                    {useCustomCron ? 'Provide a raw cron expression for this pipeline' : 'Select a reusable schedule or create a new one'}
-                                </div>
                             </div>
 
                             {isCreatingSchedule && !useCustomCron && (
-                                <div style={{
-                                    background: 'rgba(255,255,255,0.03)',
-                                    padding: '1.25rem',
-                                    borderRadius: 'var(--radius-md)',
-                                    border: '1px solid var(--glass-border)',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: '1rem'
-                                }}>
-                                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent-primary)' }}>New Reusable Schedule</div>
+                                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '8px' }}>
                                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                        <input
-                                            style={{ fontSize: '0.85rem', flex: 1 }}
-                                            placeholder="Schedule Slug (e.g. daily_midnight)"
-                                            value={newScheduleData.slug}
-                                            onChange={(e) => setNewScheduleData({ ...newScheduleData, slug: e.target.value })}
-                                        />
-                                        <input
-                                            style={{ fontSize: '0.85rem', flex: 1 }}
-                                            placeholder="Cron (e.g. 0 0 * * *)"
-                                            value={newScheduleData.cron}
-                                            onChange={(e) => setNewScheduleData({ ...newScheduleData, cron: e.target.value })}
-                                        />
+                                        <input placeholder="Slug" value={newScheduleData.slug} onChange={e => setNewScheduleData({ ...newScheduleData, slug: e.target.value })} />
+                                        <input placeholder="Cron" value={newScheduleData.cron} onChange={e => setNewScheduleData({ ...newScheduleData, cron: e.target.value })} />
                                     </div>
-                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                        <button
-                                            type="button"
-                                            className="btn-primary"
-                                            style={{ fontSize: '0.8rem', padding: '0.4rem' }}
-                                            onClick={handleCreateSchedule}
-                                        >
-                                            Register & Select
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="btn-secondary"
-                                            style={{ fontSize: '0.8rem', padding: '0.4rem' }}
-                                            onClick={() => setIsCreatingSchedule(false)}
-                                        >
-                                            Cancel
-                                        </button>
-                                    </div>
+                                    <button type="button" onClick={handleCreateSchedule} className="btn-primary" style={{ marginTop: '0.5rem', width: '100%', fontSize: '0.8rem' }}>Create Schedule</button>
                                 </div>
                             )}
 
@@ -359,57 +477,24 @@ export const PipelineList: React.FC = () => {
                                         type="date"
                                         value={formData.partition_start_dt}
                                         onChange={(e) => setFormData({ ...formData, partition_start_dt: e.target.value })}
-                                        style={{ width: '100%' }}
                                     />
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                                        Optional: Start date for backfills
-                                    </div>
                                 </div>
-
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '1.75rem' }}>
-                                    <input
-                                        type="checkbox"
-                                        id="actv_ind"
-                                        checked={formData.actv_ind}
-                                        onChange={(e) => setFormData({ ...formData, actv_ind: e.target.checked })}
-                                        style={{ width: 'auto', margin: 0 }}
-                                    />
-                                    <label htmlFor="actv_ind" style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                                        Pipeline Active
-                                    </label>
+                                    <input type="checkbox" id="actv_ind" checked={formData.actv_ind} onChange={e => setFormData({ ...formData, actv_ind: e.target.checked })} />
+                                    <label htmlFor="actv_ind">Active</label>
                                 </div>
                             </div>
 
-                            {!editingPipeline && (
-                                <div style={{
-                                    background: 'var(--glass-bg)',
-                                    padding: '1rem',
-                                    borderRadius: 'var(--radius-md)',
-                                    border: '1px solid var(--glass-border)'
-                                }}>
-                                    <div style={{ fontSize: '0.9rem', marginBottom: '0.5rem', fontWeight: 600 }}>
-                                        What happens on creation:
-                                    </div>
-                                    <ul style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0, paddingLeft: '1.5rem' }}>
-                                        <li>Pipeline record created in <code>etl_job</code></li>
-                                        <li>Empty parameter record initialized in <code>etl_job_parameter</code></li>
-                                        <li>Configure parameters in the detail page after creation</li>
-                                    </ul>
-                                </div>
-                            )}
-
-                            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                            <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
                                 <button type="submit" className="btn-primary" style={{ flex: 1 }}>
-                                    {editingPipeline ? 'Update Pipeline' : 'Create Pipeline'}
+                                    {editingInstance ? 'Update Instance' : 'Create Instance'}
                                 </button>
-                                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">
-                                    Cancel
-                                </button>
+                                <button type="button" onClick={() => setShowInstanceModal(false)} className="btn-secondary">Cancel</button>
                             </div>
                         </form>
                     </div>
-                </div >
+                </div>
             )}
-        </div >
+        </div>
     );
 };

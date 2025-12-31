@@ -6,7 +6,7 @@ import {
     PipelineDetail,
     ConnectionList,
     ScheduleList,
-    SchemaList,
+    JobDefinitionList,
     StatusDashboard,
     UserManagement,
     TeamManagement,
@@ -96,9 +96,9 @@ function AppRoutes() {
                 </ProtectedRoute>
             } />
 
-            <Route path="/schemas" element={
+            <Route path="/jobs" element={
                 <ProtectedRoute requiredPermission="CAN_VIEW_LOGS">
-                    <Layout><SchemaList /></Layout>
+                    <Layout><JobDefinitionList /></Layout>
                 </ProtectedRoute>
             } />
 

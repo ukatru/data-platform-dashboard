@@ -69,7 +69,7 @@ export const PipelineDetail: React.FC = () => {
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>{pipeline.job_nm}</h1>
         <div style={{ display: 'flex', gap: '2rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-          <span>Invocation: {pipeline.invok_id}</span>
+          <span>Instance: {pipeline.instance_id}</span>
           <span>Created: {new Date(pipeline.creat_dttm).toLocaleDateString()}</span>
         </div>
       </div>
@@ -87,7 +87,7 @@ export const PipelineDetail: React.FC = () => {
             <h3 style={{ marginBottom: '1.5rem' }}>Pipeline Configuration</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '1rem' }}>
               <div style={{ color: 'var(--text-secondary)' }}>Schedule:</div>
-              <div>{pipeline.schedule_id ? `Schedule #${pipeline.schedule_id}` : pipeline.cron_schedule || 'Manual execution'}</div>
+              <div>{pipeline.schedule_display}</div>
 
               <div style={{ color: 'var(--text-secondary)' }}>Active:</div>
               <div>

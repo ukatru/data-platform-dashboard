@@ -57,6 +57,7 @@ export const api = {
         status: () => apiInstance.get(`${API_BASE}/metadata/status`),
         schemas: () => apiInstance.get(`${API_BASE}/metadata/schemas`),
         repositories: () => apiInstance.get(`${API_BASE}/metadata/repositories`),
+        jobs: () => apiInstance.get(`${API_BASE}/metadata/jobs`),
     },
 
     // Connections
@@ -109,6 +110,12 @@ export const api = {
         getParams: (id: number) => apiInstance.get(`${API_BASE}/pipelines/${id}/params`),
         updateParams: (id: number, params: any) => apiInstance.put(`${API_BASE}/pipelines/${id}/params`, params),
         getSchema: (id: number) => apiInstance.get(`${API_BASE}/pipelines/${id}/schema`),
+    },
+
+    // Job Definitions
+    jobs: {
+        list: () => apiInstance.get(`${API_BASE}/jobs/`),
+        get: (id: number) => apiInstance.get(`${API_BASE}/jobs/${id}`),
     },
 
     // Status

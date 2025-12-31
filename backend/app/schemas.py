@@ -165,33 +165,49 @@ class ParamsSchema(ParamsSchemaBase, AuditBase):
     team_nm: Optional[str] = None
     org_code: Optional[str] = None
 
-# Job schemas
-class JobBase(BaseModel):
+# Job Definition schemas (Source of Truth)
+class JobDefinitionBase(BaseModel):
     job_nm: str
-    invok_id: str
+    description: Optional[str] = None
+    yaml_def: Optional[Dict[str, Any]] = None
+    params_schema: Optional[Dict[str, Any]] = None
+    asset_selection: Optional[List[str]] = None
     org_id: Optional[int] = None
     team_id: Optional[int] = None
     code_location_id: Optional[int] = None
+    actv_ind: bool = True
+
+class JobDefinition(JobDefinitionBase, AuditBase):
+    id: int
+    team_nm: Optional[str] = None
+    org_code: Optional[str] = None
+    location_nm: Optional[str] = None
+    repo_url: Optional[str] = None
+
+# Job Instance schemas (User Configured)
+class JobInstanceBase(BaseModel):
+    job_definition_id: int
+    instance_id: str
+    description: Optional[str] = None
     schedule_id: Optional[int] = None
     cron_schedule: Optional[str] = None
     partition_start_dt: Optional[datetime] = None
-    actv_ind: Optional[bool] = True
+    actv_ind: bool = True
 
-class JobCreate(JobBase):
+class JobInstanceCreate(JobInstanceBase):
     pass
 
-class JobUpdate(BaseModel):
-    org_id: Optional[int] = None
-    team_id: Optional[int] = None
-    code_location_id: Optional[int] = None
+class JobInstanceUpdate(BaseModel):
+    description: Optional[str] = None
     schedule_id: Optional[int] = None
     cron_schedule: Optional[str] = None
     partition_start_dt: Optional[datetime] = None
-    actv_ind: Optional[bool] = True
+    actv_ind: Optional[bool] = None
 
-class Job(JobBase, AuditBase):
+class JobInstance(JobInstanceBase, AuditBase):
     id: int
-    schedule: Optional[str] = None
+    job_nm: Optional[str] = None # Coalesced from definition for UI convenience
+    schedule_display: Optional[str] = None
     team_nm: Optional[str] = None
     org_code: Optional[str] = None
 

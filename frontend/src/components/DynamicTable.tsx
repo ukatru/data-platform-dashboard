@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Edit, Trash2, Copy, Play } from 'lucide-react';
+import { Edit, Trash2, Copy, Play, FileText } from 'lucide-react';
 import { ColumnMetadata } from '../services/api';
 import { RoleName, useAuth } from '../contexts/AuthContext';
 import { RoleGuard } from './RoleGuard';
@@ -11,13 +11,15 @@ interface DynamicTableProps {
     onEdit?: (row: any) => void;
     onDelete?: (row: any) => void;
     onTest?: (row: any) => void;
+    onView?: (row: any) => void;
     onLinkClick?: (row: any) => void;
-    linkColumn?: string;
+    linkColumn?: string | string[];
     linkPath?: (row: any) => string;
     primaryKey: string;
     editRole?: RoleName;
     deleteRole?: RoleName;
     testRole?: RoleName;
+    viewRole?: RoleName;
     emptyMessage?: string;
 }
 
@@ -27,6 +29,7 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
     onEdit,
     onDelete,
     onTest,
+    onView,
     onLinkClick,
     linkColumn,
     linkPath,
@@ -34,6 +37,7 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
     editRole,
     deleteRole,
     testRole,
+    viewRole,
     emptyMessage = "No records found"
 }) => {
     const { hasPermission } = useAuth();
@@ -48,7 +52,8 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
     const isActionsVisible = (
         (onEdit && hasPermission(getPermissionForRole(editRole || 'DPE_DEVELOPER'))) ||
         (onDelete && hasPermission(getPermissionForRole(deleteRole || 'DPE_PLATFORM_ADMIN'))) ||
-        (onTest && hasPermission(getPermissionForRole(testRole || 'DPE_DATA_ANALYST')))
+        (onTest && hasPermission(getPermissionForRole(testRole || 'DPE_DATA_ANALYST'))) ||
+        (onView && hasPermission(getPermissionForRole(viewRole || 'DPE_DATA_ANALYST')))
     );
 
     const copyToClipboard = (text: string) => {
@@ -64,26 +69,30 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
         }
 
         // Link rendering
-        if (col.render_hint === 'link' && linkColumn === col.name) {
-            if (onLinkClick) {
-                return (
-                    <button
-                        onClick={() => onLinkClick(row)}
-                        style={{ color: 'var(--accent-primary)', fontWeight: 600, padding: 0, textAlign: 'left' }}
-                    >
-                        {value}
-                    </button>
-                );
-            }
-            if (linkPath) {
-                return (
-                    <Link
-                        to={linkPath(row)}
-                        style={{ color: 'var(--accent-primary)', textDecoration: 'none', fontWeight: 600 }}
-                    >
-                        {value}
-                    </Link>
-                );
+        if (col.render_hint === 'link') {
+            const isLinkCol = !linkColumn || linkColumn === col.name || (Array.isArray(linkColumn) && linkColumn.includes(col.name));
+            if (isLinkCol) {
+                const linkText = col.name === 'yaml_def' ? 'View YAML' : value;
+                if (onLinkClick) {
+                    return (
+                        <button
+                            onClick={() => onLinkClick(row)}
+                            style={{ color: 'var(--accent-primary)', fontWeight: 600, padding: 0, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }}
+                        >
+                            {linkText}
+                        </button>
+                    );
+                }
+                if (linkPath) {
+                    return (
+                        <Link
+                            to={linkPath(row)}
+                            style={{ color: 'var(--accent-primary)', textDecoration: 'none', fontWeight: 600 }}
+                        >
+                            {linkText}
+                        </Link>
+                    );
+                }
             }
         }
 
@@ -164,6 +173,18 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
                 const status = statusMap[value] || { label: value, className: 'status-badge' };
                 return <span className={status.className}>{status.label}</span>;
             }
+            // Array of items (Multi-badge)
+            if (Array.isArray(value)) {
+                return (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                        {value.map((item: any, i: number) => (
+                            <span key={i} className="status-badge" style={{ fontSize: '0.75rem', padding: '0.1rem 0.5rem' }}>
+                                {item}
+                            </span>
+                        ))}
+                    </div>
+                );
+            }
             // Default badge
             return <span className="status-badge">{value}</span>;
         }
@@ -188,7 +209,10 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
             return value;
         }
 
-        // Default string rendering
+        // Default rendering with safety check
+        if (typeof value === 'object') {
+            return JSON.stringify(value);
+        }
         return value;
     };
 
@@ -222,6 +246,13 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
                             {isActionsVisible && (
                                 <td>
                                     <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        {onView && (
+                                            <RoleGuard requiredRole={viewRole || 'DPE_DATA_ANALYST'}>
+                                                <button onClick={() => onView(row)} style={{ color: 'var(--text-secondary)' }} title="View Definition">
+                                                    <FileText size={16} />
+                                                </button>
+                                            </RoleGuard>
+                                        )}
                                         {onTest && (
                                             <RoleGuard requiredRole={testRole || 'DPE_DATA_ANALYST'}>
                                                 <button onClick={() => onTest(row)} style={{ color: 'var(--accent-secondary)' }} title="Test Connection">

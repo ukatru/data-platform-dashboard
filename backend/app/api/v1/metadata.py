@@ -9,25 +9,33 @@ router = APIRouter()
 # Define column metadata for each table
 PIPELINE_COLUMNS = [
     schemas.ColumnMetadata(name="id", label="ID", data_type="integer", visible=False, sortable=True),
-    schemas.ColumnMetadata(name="job_nm", label="Pipeline Name", data_type="string", visible=True, sortable=True, render_hint="link", width="250px"),
-    schemas.ColumnMetadata(name="invok_id", label="Invocation ID", data_type="string", visible=True, sortable=True, render_hint="code", width="150px"),
+    schemas.ColumnMetadata(name="job_nm", label="Job Name", data_type="string", visible=True, sortable=True, width="250px"),
+    schemas.ColumnMetadata(name="instance_id", label="Instance ID", data_type="string", visible=True, sortable=True, render_hint="code", width="150px"),
     schemas.ColumnMetadata(name="schedule", label="Schedule", data_type="string", visible=True, sortable=True, width="180px"),
-    schemas.ColumnMetadata(name="cron_schedule", label="Cron", data_type="string", visible=False, sortable=False, render_hint="code"),
     schemas.ColumnMetadata(name="partition_start_dt", label="Partition Start", data_type="datetime", visible=False, sortable=True),
-    schemas.ColumnMetadata(name="actv_ind", label="Active", data_type="boolean", visible=False, sortable=True, render_hint="badge"),
+    schemas.ColumnMetadata(name="actv_ind", label="Active", data_type="boolean", visible=True, sortable=True, render_hint="badge", width="100px"),
     schemas.ColumnMetadata(name="creat_dttm", label="Created", data_type="datetime", visible=True, sortable=True, render_hint="datetime", width="120px"),
-    schemas.ColumnMetadata(name="creat_by_nm", label="Created By", data_type="string", visible=False, sortable=True),
     schemas.ColumnMetadata(name="team_nm", label="Team", data_type="string", visible=True, sortable=True, width="120px"),
-    schemas.ColumnMetadata(name="org_code", label="Org", data_type="string", visible=True, sortable=True, width="80px"),
-    schemas.ColumnMetadata(name="updt_dttm", label="Updated", data_type="datetime", visible=False, sortable=True),
-    schemas.ColumnMetadata(name="updt_by_nm", label="Updated By", data_type="string", visible=False, sortable=True),
+    schemas.ColumnMetadata(name="org_code", label="Org", data_type="string", visible=False, sortable=True, width="80px"),
+]
+
+JOB_DEFINITION_COLUMNS = [
+    schemas.ColumnMetadata(name="id", label="ID", data_type="integer", visible=False, sortable=True),
+    schemas.ColumnMetadata(name="job_nm", label="Job Name", data_type="string", visible=True, sortable=True, render_hint="link", width="250px"),
+    schemas.ColumnMetadata(name="description", label="Description", data_type="string", visible=True, sortable=True, width="350px"),
+    schemas.ColumnMetadata(name="yaml_def", label="Definition", data_type="json", visible=True, sortable=False, render_hint="link", width="120px"),
+    schemas.ColumnMetadata(name="asset_selection", label="Assets", data_type="json", visible=True, sortable=False, render_hint="badge", width="200px"),
+    schemas.ColumnMetadata(name="creat_dttm", label="Discovered", data_type="datetime", visible=True, sortable=True, render_hint="datetime", width="150px"),
+    schemas.ColumnMetadata(name="team_nm", label="Team Owner", data_type="string", visible=True, sortable=True, width="120px"),
+    schemas.ColumnMetadata(name="repo_url", label="Source URL", data_type="string", visible=True, sortable=True, render_hint="external_link", width="250px"),
+    schemas.ColumnMetadata(name="org_code", label="Org", data_type="string", visible=False, sortable=True, width="80px"),
 ]
 
 SCHEDULE_COLUMNS = [
     schemas.ColumnMetadata(name="id", label="ID", data_type="integer", visible=False, sortable=True),
     schemas.ColumnMetadata(name="slug", label="Slug", data_type="string", visible=True, sortable=True, width="200px"),
     schemas.ColumnMetadata(name="team_nm", label="Team", data_type="string", visible=True, sortable=True, width="120px"),
-    schemas.ColumnMetadata(name="org_code", label="Org", data_type="string", visible=True, sortable=True, width="80px"),
+    schemas.ColumnMetadata(name="org_code", label="Org", data_type="string", visible=False, sortable=True, width="80px"),
     schemas.ColumnMetadata(name="cron", label="Cron Expression", data_type="string", visible=True, sortable=True, render_hint="code", width="200px"),
     schemas.ColumnMetadata(name="timezone", label="Timezone", data_type="string", visible=True, sortable=True, width="120px"),
     schemas.ColumnMetadata(name="actv_ind", label="Status", data_type="boolean", visible=True, sortable=True, render_hint="badge", width="100px"),
@@ -39,7 +47,7 @@ CONNECTION_COLUMNS = [
     schemas.ColumnMetadata(name="conn_nm", label="Name", data_type="string", visible=True, sortable=True, render_hint="link", width="300px"),
     schemas.ColumnMetadata(name="conn_type", label="Type", data_type="string", visible=True, sortable=True, render_hint="badge", width="150px"),
     schemas.ColumnMetadata(name="team_nm", label="Team", data_type="string", visible=True, sortable=True, width="120px"),
-    schemas.ColumnMetadata(name="org_code", label="Org", data_type="string", visible=True, sortable=True, width="80px"),
+    schemas.ColumnMetadata(name="org_code", label="Org", data_type="string", visible=False, sortable=True, width="80px"),
     schemas.ColumnMetadata(name="creat_dttm", label="Created", data_type="datetime", visible=True, sortable=True, render_hint="datetime", width="200px"),
 ]
 
@@ -57,7 +65,7 @@ SCHEMA_COLUMNS = [
     schemas.ColumnMetadata(name="id", label="ID", data_type="integer", visible=False, sortable=True),
     schemas.ColumnMetadata(name="job_nm", label="Job Name", data_type="string", visible=True, sortable=True, render_hint="link", width="250px"),
     schemas.ColumnMetadata(name="team_nm", label="Team", data_type="string", visible=True, sortable=True, width="120px"),
-    schemas.ColumnMetadata(name="org_code", label="Org", data_type="string", visible=True, sortable=True, width="80px"),
+    schemas.ColumnMetadata(name="org_code", label="Org", data_type="string", visible=False, sortable=True, width="80px"),
     schemas.ColumnMetadata(name="description", label="Description", data_type="string", visible=True, sortable=True, width="300px"),
     schemas.ColumnMetadata(name="json_schema", label="Schema", data_type="json", visible=False, sortable=False, render_hint="json"),
     schemas.ColumnMetadata(name="is_strict", label="Strict", data_type="boolean", visible=False, sortable=True, render_hint="badge"),
@@ -106,6 +114,15 @@ def get_schema_metadata(current_user: models.ETLUser = Depends(auth.require_anal
     return schemas.TableMetadata(
         table_name="schemas",
         columns=SCHEMA_COLUMNS,
+        primary_key="id"
+    )
+
+@router.get("/jobs", response_model=schemas.TableMetadata)
+def get_job_metadata(current_user: models.ETLUser = Depends(auth.require_analyst)):
+    """Get column metadata for job definitions table"""
+    return schemas.TableMetadata(
+        table_name="jobs",
+        columns=JOB_DEFINITION_COLUMNS,
         primary_key="id"
     )
 
