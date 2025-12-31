@@ -148,30 +148,40 @@ class CodeLocation(CodeLocationBase, AuditBase):
     class Config:
         from_attributes = True
 
-# Parameter Schema (JSON Schema Registry)
-class ParamsSchemaBase(BaseModel):
-    job_nm: str
-    json_schema: Dict[str, Any]
-    description: Optional[str] = None
-    org_id: Optional[int] = None
-    team_id: Optional[int] = None
-    code_location_id: Optional[int] = None
-
-class ParamsSchemaCreate(ParamsSchemaBase):
-    pass
-
-class ParamsSchema(ParamsSchemaBase, AuditBase):
-    id: int
-    team_nm: Optional[str] = None
-    org_code: Optional[str] = None
-
-# Job Definition schemas (Source of Truth)
-class JobDefinitionBase(BaseModel):
-    job_nm: str
+# Job Template schemas (Blueprints)
+class JobTemplateBase(BaseModel):
+    template_nm: str
     description: Optional[str] = None
     yaml_def: Optional[Dict[str, Any]] = None
     params_schema: Optional[Dict[str, Any]] = None
     asset_selection: Optional[List[str]] = None
+    org_id: Optional[int] = None
+    team_id: Optional[int] = None
+    code_location_id: Optional[int] = None
+    actv_ind: bool = True
+
+class JobTemplate(JobTemplateBase, AuditBase):
+    id: int
+    team_nm: Optional[str] = None
+    org_code: Optional[str] = None
+    location_nm: Optional[str] = None
+    repo_url: Optional[str] = None
+
+# Job Definition schemas (Executable Pipelines)
+class JobDefinitionBase(BaseModel):
+    job_nm: str
+    description: Optional[str] = None
+    template_id: Optional[int] = None
+    is_singleton: bool = True
+    yaml_def: Optional[Dict[str, Any]] = None
+    params_schema: Optional[Dict[str, Any]] = None
+    asset_selection: Optional[List[str]] = None
+    
+    # Scheduling
+    schedule_id: Optional[int] = None
+    cron_schedule: Optional[str] = None
+    partition_start_dt: Optional[datetime] = None
+    
     org_id: Optional[int] = None
     team_id: Optional[int] = None
     code_location_id: Optional[int] = None
@@ -183,37 +193,51 @@ class JobDefinition(JobDefinitionBase, AuditBase):
     org_code: Optional[str] = None
     location_nm: Optional[str] = None
     repo_url: Optional[str] = None
+    template_nm: Optional[str] = None
+    schedule_display: Optional[str] = None
 
-# Job Instance schemas (User Configured)
+from pydantic import Field, AliasChoices
+
 class JobInstanceBase(BaseModel):
-    job_definition_id: int
-    instance_id: str
+    job_definition_id: Optional[int] = Field(None, validation_alias=AliasChoices('template_id', 'job_definition_id'), serialization_alias='job_definition_id')
+    instance_id: str = Field(..., validation_alias=AliasChoices('job_nm', 'instance_id'), serialization_alias='instance_id')
     description: Optional[str] = None
     schedule_id: Optional[int] = None
     cron_schedule: Optional[str] = None
     partition_start_dt: Optional[datetime] = None
+    is_singleton: bool = True
+    yaml_def: Optional[Dict[str, Any]] = None
+    params_schema: Optional[Dict[str, Any]] = None
+    asset_selection: Optional[List[str]] = None
+    params_json: Optional[Dict[str, Any]] = None
     actv_ind: bool = True
 
 class JobInstanceCreate(JobInstanceBase):
     pass
 
 class JobInstanceUpdate(BaseModel):
+    instance_id: Optional[str] = None
     description: Optional[str] = None
     schedule_id: Optional[int] = None
     cron_schedule: Optional[str] = None
     partition_start_dt: Optional[datetime] = None
+    params_json: Optional[Dict[str, Any]] = None
     actv_ind: Optional[bool] = None
 
 class JobInstance(JobInstanceBase, AuditBase):
-    id: int
-    job_nm: Optional[str] = None # Coalesced from definition for UI convenience
+    id: Any # Can be int or string (e.g. "inst_1")
+    job_nm: Optional[str] = None
+    template_nm: Optional[str] = None
     schedule_display: Optional[str] = None
     team_nm: Optional[str] = None
     org_code: Optional[str] = None
+    location_nm: Optional[str] = None
+    repo_url: Optional[str] = None
+    params_json: Optional[Dict[str, Any]] = None
 
 # Job Parameter schemas
 class JobParameterBase(BaseModel):
-    etl_job_id: int
+    job_definition_id: int
     config_json: Dict[str, Any]
 
 class JobParameterCreate(JobParameterBase):
@@ -252,6 +276,7 @@ class AssetStatus(BaseModel):
 class SummaryStats(BaseModel):
     connections: int
     jobs: int
+    blueprints: int
     schedules: int
     active_runs: int
     failed_today: int

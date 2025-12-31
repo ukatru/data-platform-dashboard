@@ -21,60 +21,77 @@ def get_summary(
     tenant_ctx: auth.TenantContext = Depends(auth.require_permission(auth.Permission.CAN_VIEW_LOGS))
 ):
     """Get summary statistics filtered by organization and optionally team"""
-    conn_query = db.query(models.ETLConnection)
-    job_query = db.query(models.ETLJob)
-    status_query = db.query(models.ETLJobStatus)
-    
-    # 1. Base Org Filtering
-    if tenant_ctx.org_id is not None:
-        conn_query = conn_query.filter(models.ETLConnection.org_id == tenant_ctx.org_id)
-        job_query = job_query.filter(models.ETLJob.org_id == tenant_ctx.org_id)
-        status_query = status_query.filter(models.ETLJobStatus.org_id == tenant_ctx.org_id)
+    try:
+        conn_query = db.query(models.ETLConnection)
+        blueprint_query = db.query(models.ETLJobTemplate)
+        job_query = db.query(models.ETLJobDefinition)
+        status_query = db.query(models.ETLJobStatus)
+        
+        # 1. Base Org Filtering
+        if tenant_ctx.org_id is not None:
+            conn_query = conn_query.filter(models.ETLConnection.org_id == tenant_ctx.org_id)
+            blueprint_query = blueprint_query.filter(models.ETLJobTemplate.org_id == tenant_ctx.org_id)
+            job_query = job_query.filter(models.ETLJobDefinition.org_id == tenant_ctx.org_id)
+            status_query = status_query.filter(models.ETLJobStatus.org_id == tenant_ctx.org_id)
 
-    # 2. Team Filtering (Implicit or Explicit)
-    effective_team_id = team_id or tenant_ctx.team_id
-    
-    sched_query = db.query(models.ETLSchedule)
-    # Note: Phase 8 will add org_id/team_id to ETLSchedule. 
-    # For now, we filter jobs and then count unique schedules linked to those jobs 
-    # OR we just filter by the jobs the user has access to.
-    
-    if effective_team_id:
-        conn_query = conn_query.filter(models.ETLConnection.team_id == effective_team_id)
-        job_query = job_query.filter(models.ETLJob.team_id == effective_team_id)
-        status_query = status_query.filter(models.ETLJobStatus.team_id == effective_team_id)
-        # Filters schedules linked to jobs in this team
-        sched_query = sched_query.join(models.ETLJob).filter(models.ETLJob.team_id == effective_team_id)
-    elif not tenant_ctx.has_permission(auth.Permission.PLATFORM_ADMIN):
-        # If not an admin and no specific team selected, show only teams the user belongs to
-        user_team_ids = [m.team_id for m in tenant_ctx.user.team_memberships if m.actv_ind]
-        conn_query = conn_query.filter(models.ETLConnection.team_id.in_(user_team_ids))
-        job_query = job_query.filter(models.ETLJob.team_id.in_(user_team_ids))
-        status_query = status_query.filter(models.ETLJobStatus.team_id.in_(user_team_ids))
-        sched_query = sched_query.join(models.ETLJob).filter(models.ETLJob.team_id.in_(user_team_ids))
+        # 2. Team Filtering (Implicit or Explicit)
+        effective_team_id = team_id or tenant_ctx.team_id
+        
+        sched_query = db.query(models.ETLSchedule)
+        
+        if effective_team_id:
+            conn_query = conn_query.filter(models.ETLConnection.team_id == effective_team_id)
+            blueprint_query = blueprint_query.filter(models.ETLJobTemplate.team_id == effective_team_id)
+            job_query = job_query.filter(models.ETLJobDefinition.team_id == effective_team_id)
+            status_query = status_query.filter(models.ETLJobStatus.team_id == effective_team_id)
+            # Filters schedules linked to jobs in this team
+            sched_query = sched_query.join(models.ETLJobDefinition, models.ETLSchedule.id == models.ETLJobDefinition.schedule_id).filter(models.ETLJobDefinition.team_id == effective_team_id)
+        elif not tenant_ctx.has_permission(auth.Permission.PLATFORM_ADMIN):
+            # If not an admin and no specific team selected, show only teams the user belongs to
+            user_team_ids = [m.team_id for m in tenant_ctx.user.team_memberships if m.actv_ind]
+            conn_query = conn_query.filter(models.ETLConnection.team_id.in_(user_team_ids))
+            blueprint_query = blueprint_query.filter(models.ETLJobTemplate.team_id.in_(user_team_ids))
+            job_query = job_query.filter(models.ETLJobDefinition.team_id.in_(user_team_ids))
+            status_query = status_query.filter(models.ETLJobStatus.team_id.in_(user_team_ids))
+            sched_query = sched_query.join(models.ETLJobDefinition, models.ETLSchedule.id == models.ETLJobDefinition.schedule_id).filter(models.ETLJobDefinition.team_id.in_(user_team_ids))
 
-    conn_count = conn_query.count()
-    job_count = job_query.count()
-    sched_count = sched_query.distinct().count()
-    
-    # Operational stats
-    now = datetime.utcnow()
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    
-    active_runs = status_query.filter(models.ETLJobStatus.btch_sts_cd == 'R').count()
-    failed_today = status_query.filter(
-        models.ETLJobStatus.btch_sts_cd == 'A',
-        models.ETLJobStatus.end_dttm >= today_start
-    ).count()
-    
-    return {
-        "connections": conn_count,
-        "jobs": job_count,
-        "schedules": sched_count,
-        "active_runs": active_runs,
-        "failed_today": failed_today,
-        "last_sync": now
-    }
+        conn_count = conn_query.count()
+        blueprint_count = blueprint_query.count()
+        job_count = job_query.count()
+        sched_count = sched_query.distinct().count()
+        
+        # Operational stats
+        now = datetime.utcnow()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        active_runs = status_query.filter(models.ETLJobStatus.btch_sts_cd == 'R').count()
+        failed_today = status_query.filter(
+            models.ETLJobStatus.btch_sts_cd == 'A',
+            models.ETLJobStatus.end_dttm >= today_start
+        ).count()
+        
+        return {
+            "connections": conn_count,
+            "jobs": job_count,
+            "blueprints": blueprint_count,
+            "schedules": sched_count,
+            "active_runs": active_runs,
+            "failed_today": failed_today,
+            "last_sync": now
+        }
+    except Exception as e:
+        print(f"Error fetching summary stats: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        return {
+            "connections": 0,
+            "jobs": 0,
+            "blueprints": 0,
+            "schedules": 0,
+            "active_runs": 0,
+            "failed_today": 0,
+            "last_sync": datetime.utcnow()
+        }
 
 @router.get("/jobs", response_model=List[schemas.JobStatus])
 def get_job_statuses(

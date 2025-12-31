@@ -304,3 +304,4 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+*/backend/app/core/config.py

@@ -27,11 +27,13 @@ def list_job_definitions(
         models.ETLTeam.team_nm,
         models.ETLOrg.org_code,
         models.ETLCodeLocation.location_nm,
-        models.ETLCodeLocation.repo_url
+        models.ETLCodeLocation.repo_url,
+        models.ETLJobTemplate.template_nm
     )\
     .join(models.ETLTeam, models.ETLJobDefinition.team_id == models.ETLTeam.id)\
     .join(models.ETLOrg, models.ETLJobDefinition.org_id == models.ETLOrg.id)\
-    .outerjoin(models.ETLCodeLocation, models.ETLJobDefinition.code_location_id == models.ETLCodeLocation.id)
+    .outerjoin(models.ETLCodeLocation, models.ETLJobDefinition.code_location_id == models.ETLCodeLocation.id)\
+    .outerjoin(models.ETLJobTemplate, models.ETLJobDefinition.template_id == models.ETLJobTemplate.id)
 
     if tenant_ctx.org_id is not None:
         query = query.filter(models.ETLJobDefinition.org_id == tenant_ctx.org_id)
@@ -46,12 +48,13 @@ def list_job_definitions(
     results = query.all()
     
     definitions = []
-    for definition, team_nm, org_code, loc_nm, repo_url in results:
+    for definition, team_nm, org_code, loc_nm, repo_url, template_nm in results:
         data = schemas.JobDefinition.model_validate(definition)
         data.team_nm = team_nm
         data.org_code = org_code
         data.location_nm = loc_nm
         data.repo_url = repo_url
+        data.template_nm = template_nm
         definitions.append(data)
         
     return definitions
@@ -69,11 +72,13 @@ def get_job_definition(
         models.ETLTeam.team_nm,
         models.ETLOrg.org_code,
         models.ETLCodeLocation.location_nm,
-        models.ETLCodeLocation.repo_url
+        models.ETLCodeLocation.repo_url,
+        models.ETLJobTemplate.template_nm
     )\
     .join(models.ETLTeam, models.ETLJobDefinition.team_id == models.ETLTeam.id)\
     .join(models.ETLOrg, models.ETLJobDefinition.org_id == models.ETLOrg.id)\
     .outerjoin(models.ETLCodeLocation, models.ETLJobDefinition.code_location_id == models.ETLCodeLocation.id)\
+    .outerjoin(models.ETLJobTemplate, models.ETLJobDefinition.template_id == models.ETLJobTemplate.id)\
     .filter(models.ETLJobDefinition.id == id)
 
     if tenant_ctx.org_id is not None:
@@ -83,10 +88,11 @@ def get_job_definition(
     if not result:
         raise HTTPException(status_code=404, detail="Job Definition not found")
 
-    definition, team_nm, org_code, loc_nm, repo_url = result
+    definition, team_nm, org_code, loc_nm, repo_url, template_nm = result
     data = schemas.JobDefinition.model_validate(definition)
     data.team_nm = team_nm
     data.org_code = org_code
     data.location_nm = loc_nm
     data.repo_url = repo_url
+    data.template_nm = template_nm
     return data

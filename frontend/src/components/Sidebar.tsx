@@ -103,7 +103,7 @@ export const Sidebar: React.FC = () => {
 
             <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <NavItem to="/" icon={LayoutDashboard} label="Dashboard" />
-                <NavItem to="/jobs" icon={FileJson} label="Job Definitions" requiredPermission="CAN_VIEW_LOGS" />
+                <NavItem to="/blueprints" icon={FileJson} label="Blueprints" requiredPermission="CAN_VIEW_LOGS" />
                 <NavItem to="/pipelines" icon={Workflow} label="Pipelines" requiredPermission="CAN_VIEW_LOGS" />
                 <NavItem to="/connections" icon={Database} label="Connections" requiredPermission="CAN_MANAGE_CONNECTIONS" />
                 <NavItem to="/schedules" icon={Calendar} label="Schedules" requiredPermission="CAN_VIEW_LOGS" />

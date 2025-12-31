@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
-import { Activity, Database, Calendar, Workflow, AlertCircle } from 'lucide-react';
+import { Activity, Database, Calendar, Workflow, AlertCircle, FileJson } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export const Dashboard: React.FC = () => {
@@ -45,10 +45,11 @@ export const Dashboard: React.FC = () => {
                 Real-time operational health and distribution
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
                 <StatCard label="Active Runs" value={stats?.active_runs} icon={Activity} color="var(--accent-primary)" />
                 <StatCard label="Failed Today" value={stats?.failed_today} icon={AlertCircle} color="var(--error)" />
-                <StatCard label="Total Pipelines" value={stats?.jobs} icon={Workflow} />
+                <StatCard label="Blueprints" value={stats?.blueprints} icon={FileJson} color="var(--accent-secondary)" />
+                <StatCard label="Pipelines" value={stats?.jobs} icon={Workflow} />
                 <StatCard label="Connections" value={stats?.connections} icon={Database} />
                 <StatCard label="Schedules" value={stats?.schedules} icon={Calendar} />
             </div>
@@ -56,6 +57,9 @@ export const Dashboard: React.FC = () => {
             <div className="glass" style={{ padding: '2rem' }}>
                 <h3 style={{ marginBottom: '1.5rem' }}>Quick Actions</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                    <button className="btn-secondary" onClick={() => window.location.href = '/blueprints'}>
+                        View Blueprints
+                    </button>
                     <button className="btn-secondary" onClick={() => window.location.href = '/pipelines'}>
                         View Pipelines
                     </button>

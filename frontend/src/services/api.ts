@@ -55,9 +55,8 @@ export const api = {
         schedules: () => apiInstance.get(`${API_BASE}/metadata/schedules`),
         connections: () => apiInstance.get(`${API_BASE}/metadata/connections`),
         status: () => apiInstance.get(`${API_BASE}/metadata/status`),
-        schemas: () => apiInstance.get(`${API_BASE}/metadata/schemas`),
+        blueprints: () => apiInstance.get(`${API_BASE}/metadata/blueprints`),
         repositories: () => apiInstance.get(`${API_BASE}/metadata/repositories`),
-        jobs: () => apiInstance.get(`${API_BASE}/metadata/jobs`),
     },
 
     // Connections
@@ -83,12 +82,11 @@ export const api = {
         delete: (id: number) => apiInstance.delete(`${API_BASE}/schedules/${id}`),
     },
 
-    // Schemas
-    schemas: {
-        list: () => apiInstance.get(`${API_BASE}/schemas/`),
-        get: (id: number) => apiInstance.get(`${API_BASE}/schemas/${id}`),
-        getByJob: (jobName: string) => apiInstance.get(`${API_BASE}/schemas/by-job/${jobName}`),
-        create: (data: any) => apiInstance.post(`${API_BASE}/schemas/`, data),
+    // Blueprints (Templates)
+    blueprints: {
+        list: () => apiInstance.get(`${API_BASE}/blueprints/`),
+        get: (id: number) => apiInstance.get(`${API_BASE}/blueprints/${id}`),
+        create: (data: any) => apiInstance.post(`${API_BASE}/blueprints/`, data),
     },
 
     // Repositories (Code Locations)
@@ -103,19 +101,19 @@ export const api = {
     // Pipelines
     pipelines: {
         list: () => apiInstance.get(`${API_BASE}/pipelines/`),
-        get: (id: number) => apiInstance.get(`${API_BASE}/pipelines/${id}`),
+        get: (id: string | number) => apiInstance.get(`${API_BASE}/pipelines/${id}`),
         create: (data: any) => apiInstance.post(`${API_BASE}/pipelines/`, data),
-        update: (id: number, data: any) => apiInstance.put(`${API_BASE}/pipelines/${id}`, data),
-        delete: (id: number) => apiInstance.delete(`${API_BASE}/pipelines/${id}`),
-        getParams: (id: number) => apiInstance.get(`${API_BASE}/pipelines/${id}/params`),
-        updateParams: (id: number, params: any) => apiInstance.put(`${API_BASE}/pipelines/${id}/params`, params),
-        getSchema: (id: number) => apiInstance.get(`${API_BASE}/pipelines/${id}/schema`),
+        update: (id: string | number, data: any) => apiInstance.put(`${API_BASE}/pipelines/${id}`, data),
+        delete: (id: string | number) => apiInstance.delete(`${API_BASE}/pipelines/${id}`),
+        getParams: (id: string | number) => apiInstance.get(`${API_BASE}/pipelines/${id}/params`),
+        updateParams: (id: string | number, params: any) => apiInstance.put(`${API_BASE}/pipelines/${id}/params`, params),
+        getSchema: (id: string | number) => apiInstance.get(`${API_BASE}/pipelines/${id}/schema`),
     },
 
-    // Job Definitions
+    // Job Definitions (Deprecated in favor of pipelines)
     jobs: {
-        list: () => apiInstance.get(`${API_BASE}/jobs/`),
-        get: (id: number) => apiInstance.get(`${API_BASE}/jobs/${id}`),
+        list: () => apiInstance.get(`${API_BASE}/pipelines/`),
+        get: (id: number) => apiInstance.get(`${API_BASE}/pipelines/${id}`),
     },
 
     // Status

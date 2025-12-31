@@ -6,7 +6,7 @@ import {
     PipelineDetail,
     ConnectionList,
     ScheduleList,
-    JobDefinitionList,
+    BlueprintList,
     StatusDashboard,
     UserManagement,
     TeamManagement,
@@ -96,11 +96,13 @@ function AppRoutes() {
                 </ProtectedRoute>
             } />
 
-            <Route path="/jobs" element={
+            <Route path="/blueprints" element={
                 <ProtectedRoute requiredPermission="CAN_VIEW_LOGS">
-                    <Layout><JobDefinitionList /></Layout>
+                    <Layout><BlueprintList /></Layout>
                 </ProtectedRoute>
             } />
+
+            <Route path="/jobs" element={<Navigate to="/pipelines" replace />} />
 
             <Route path="/status" element={
                 <ProtectedRoute requiredPermission="CAN_VIEW_LOGS">

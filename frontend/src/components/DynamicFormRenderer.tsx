@@ -4,7 +4,7 @@ import { GenericSchemaForm } from './GenericSchemaForm';
 import { useAuth } from '../contexts/AuthContext';
 
 interface DynamicFormRendererProps {
-    pipelineId: number;
+    pipelineId: string | number;
     onSubmit?: (params: any) => void;
 }
 
@@ -15,7 +15,8 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     pipelineId,
     onSubmit
 }) => {
-    const { isDeveloper } = useAuth();
+    const { hasPermission } = useAuth();
+    const canEdit = hasPermission('CAN_EDIT_PIPELINES');
     const [schema, setSchema] = useState<any>(null);
     const [formData, setFormData] = useState<any>({});
     const [loading, setLoading] = useState(true);
@@ -28,7 +29,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
 
                 // Fetch JSON Schema
                 const schemaRes = await api.pipelines.getSchema(pipelineId);
-                setSchema(schemaRes.data.json_schema);
+                setSchema(schemaRes.data);
 
                 // Fetch current parameter values
                 try {
@@ -86,7 +87,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
             formData={formData}
             onSubmit={handleSubmit}
             onChange={(data: any) => setFormData(data)}
-            readOnly={!isDeveloper}
+            readOnly={!canEdit}
         />
     );
 };

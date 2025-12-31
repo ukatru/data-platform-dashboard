@@ -2,210 +2,197 @@ import React, { useState, useEffect } from 'react';
 import { api, TableMetadata } from '../../services/api';
 import { RoleGuard } from '../../components/RoleGuard';
 import { useAuth } from '../../contexts/AuthContext';
-import { Plus, Search, X, ChevronRight, ChevronDown, FileCode, Play } from 'lucide-react';
-import { JobDefinitionModal } from './JobDefinitionModal';
+import { Plus, Search, X } from 'lucide-react';
+import { DynamicTable } from '../../components/DynamicTable';
 
 export const PipelineList: React.FC = () => {
     const { currentTeamId } = useAuth();
     const [metadata, setMetadata] = useState<TableMetadata | null>(null);
-    const [definitions, setDefinitions] = useState<any[]>([]);
-    const [instances, setInstances] = useState<any[]>([]);
-    const [schedules, setSchedules] = useState<any[]>([]);
-    const [expandedJobs, setExpandedJobs] = useState<Set<number>>(new Set());
+    const [pipelines, setPipelines] = useState<any[]>([]);
     const [search, setSearch] = useState('');
     const [showInstanceModal, setShowInstanceModal] = useState(false);
-    const [viewingDefinition, setViewingDefinition] = useState<any | null>(null);
-    const [editingInstance, setEditingInstance] = useState<any>(null);
-
-    // Form state for creating/editing an instance
-    const [formData, setFormData] = useState({
-        job_definition_id: 0,
-        instance_id: '',
-        description: '',
-        schedule_id: undefined as number | undefined,
-        cron_schedule: '',
-        partition_start_dt: '',
-        actv_ind: true,
-    });
-    const [useCustomCron, setUseCustomCron] = useState(false);
-    const [isCreatingSchedule, setIsCreatingSchedule] = useState(false);
-    const [newScheduleData, setNewScheduleData] = useState({
-        slug: '',
-        cron: '',
-    });
-
+    const [editingPipeline, setEditingPipeline] = useState<any>(null);
+    const [blueprints, setBlueprints] = useState<any[]>([]);
+    const [schedules, setSchedules] = useState<any[]>([]);
     const [error, setError] = useState<string | null>(null);
 
+    // Form state for creating/editing a pipeline
+    const [formData, setFormData] = useState<any>({
+        job_nm: '',
+        description: '',
+        template_id: undefined,
+        schedule_id: undefined,
+        cron_schedule: '',
+        partition_start_dt: '',
+        params_json: {}
+    });
+    const [useCustomCron, setUseCustomCron] = useState(false);
+
+    const fetchMetadata = async () => {
+        try {
+            const metaRes = await api.metadata.pipelines();
+            setMetadata(metaRes.data);
+        } catch (err: any) {
+            console.error('Failed to fetch metadata', err);
+            setError("Failed to load inventory metadata.");
+        }
+    };
+
+    const fetchPipelines = async () => {
+        try {
+            const res = await api.pipelines.list();
+            setPipelines(res.data);
+        } catch (err) {
+            console.error('Failed to fetch pipelines', err);
+        }
+    };
+
+    const fetchReferenceData = async () => {
+        try {
+            const [schedRes, blueRes] = await Promise.all([
+                api.schedules.list(),
+                api.blueprints.list()
+            ]);
+            setSchedules(schedRes.data);
+            setBlueprints(blueRes.data);
+        } catch (err) {
+            console.error('Failed to fetch reference data', err);
+        }
+    };
+
     useEffect(() => {
-        const fetchMetadata = async () => {
-            try {
-                const [instMeta] = await Promise.all([
-                    api.metadata.pipelines(),
-                    api.metadata.jobs()
-                ]);
-                setMetadata(instMeta.data);
-            } catch (err: any) {
-                console.error('Failed to fetch metadata', err);
-                setError("Failed to load pipeline metadata.");
-            }
-        };
         fetchMetadata();
     }, []);
 
     useEffect(() => {
-        // Fetch schedules for dropdowns
-        const fetchReferenceData = async () => {
-            try {
-                const schedRes = await api.schedules.list();
-                setSchedules(schedRes.data);
-            } catch (err) {
-                console.error('Failed to fetch reference data', err);
-            }
-        };
+        fetchPipelines();
         fetchReferenceData();
     }, [currentTeamId]);
 
-    const fetchData = async () => {
-        try {
-            const [defRes, instRes] = await Promise.all([
-                api.jobs.list(),
-                api.pipelines.list()
-            ]);
-            setDefinitions(defRes.data);
-            setInstances(instRes.data);
-
-            // Auto-expand jobs with instances
-            const withInstances = new Set<number>(instRes.data.map((i: any) => i.job_definition_id as number));
-            setExpandedJobs(withInstances);
-        } catch (err) {
-            console.error('Failed to fetch data', err);
-        }
-    };
-
-    useEffect(() => {
-        fetchData();
-    }, [currentTeamId]);
-
-    const handleCreateInstance = (defId?: number) => {
-        setEditingInstance(null);
+    const handleCreatePipeline = () => {
+        setEditingPipeline(null);
         setFormData({
-            job_definition_id: defId || (definitions[0]?.id || 0),
-            instance_id: '',
+            template_id: undefined,
+            job_nm: '',
             description: '',
             schedule_id: undefined,
             cron_schedule: '',
             partition_start_dt: '',
-            actv_ind: true
+            actv_ind: true,
+            params_json: {}
         });
         setUseCustomCron(false);
-        setIsCreatingSchedule(false);
         setShowInstanceModal(true);
     };
 
-    const handleEditInstance = (instance: any) => {
-        setEditingInstance(instance);
+    const handleEditPipeline = (pipeline: any) => {
+        setEditingPipeline(pipeline);
         setFormData({
-            job_definition_id: instance.job_definition_id,
-            instance_id: instance.instance_id,
-            description: instance.description || '',
-            schedule_id: instance.schedule_id,
-            cron_schedule: instance.cron_schedule || '',
-            partition_start_dt: instance.partition_start_dt ? new Date(instance.partition_start_dt).toISOString().split('T')[0] : '',
-            actv_ind: instance.actv_ind !== false,
+            template_id: pipeline.template_id,
+            job_nm: pipeline.job_nm,
+            description: pipeline.description || '',
+            schedule_id: pipeline.schedule_id,
+            cron_schedule: pipeline.cron_schedule || '',
+            partition_start_dt: pipeline.partition_start_dt ? new Date(pipeline.partition_start_dt).toISOString().split('T')[0] : '',
+            actv_ind: pipeline.actv_ind !== false,
+            params_json: pipeline.params_json || {}
         });
-        setUseCustomCron(!!instance.cron_schedule);
-        setIsCreatingSchedule(false);
+        setUseCustomCron(!!pipeline.cron_schedule);
         setShowInstanceModal(true);
     };
 
-    const handleSubmitInstance = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            // Validate JSON before submission if it's a string
+            let finalParams = formData.params_json;
+            if (typeof finalParams === 'string') {
+                try {
+                    finalParams = JSON.parse(finalParams);
+                } catch (err) {
+                    alert("Invalid JSON in Parameters field");
+                    return;
+                }
+            }
+
+            // Validate YAML for singletons (Only if NO blueprint is selected)
+            let finalYaml = formData.yaml_def;
+            const isBlueprintInstance = !!formData.template_id;
+
+            if (!isBlueprintInstance) {
+                if (typeof finalYaml === 'string') {
+                    try {
+                        finalYaml = JSON.parse(finalYaml);
+                    } catch (err) {
+                        alert("Invalid JSON in YAML Definition field");
+                        return;
+                    }
+                }
+                if (!finalYaml || Object.keys(finalYaml).length === 0) {
+                    alert("YAML Definition is required for singletons. If you want to use a Blueprint, please select one from the dropdown.");
+                    return;
+                }
+            } else {
+                // For instances, YAML comes from the template, so we ignore/clear it
+                finalYaml = undefined;
+            }
+
             const payload = {
                 ...formData,
-                schedule_id: useCustomCron ? null : (formData.schedule_id || null),
-                cron_schedule: useCustomCron ? formData.cron_schedule : null,
-                partition_start_dt: formData.partition_start_dt ? formData.partition_start_dt : null,
+                params_json: finalParams,
+                yaml_def: finalYaml,
+                instance_id: formData.job_nm, // The name of the instance/singleton
+                template_id: formData.template_id, // Ensure this is correctly named
+                schedule_id: !useCustomCron && formData.schedule_id ? formData.schedule_id : undefined,
+                cron_schedule: useCustomCron ? formData.cron_schedule : undefined,
+                partition_start_dt: formData.partition_start_dt || undefined,
             };
 
-            if (editingInstance) {
-                await api.pipelines.update(editingInstance.id, payload);
+            if (editingPipeline) {
+                await api.pipelines.update(editingPipeline.id, payload);
             } else {
                 await api.pipelines.create(payload);
             }
             setShowInstanceModal(false);
-            fetchData();
+            fetchPipelines();
         } catch (err: any) {
-            alert(`Failed to save instance: ${err.response?.data?.detail || err.message}`);
+            alert(`Failed to save pipeline: ${err.response?.data?.detail || err.message}`);
         }
     };
 
-    const handleCreateSchedule = async () => {
-        if (!newScheduleData.slug || !newScheduleData.cron) return;
-        try {
-            const res = await api.schedules.create({
-                ...newScheduleData,
-                timezone: 'UTC',
-                actv_ind: true
-            });
-            // Refresh list and select the new one
-            const schedRes = await api.schedules.list();
-            setSchedules(schedRes.data);
-            setFormData({ ...formData, schedule_id: res.data.id });
-            setIsCreatingSchedule(false);
-            setNewScheduleData({ slug: '', cron: '' });
-        } catch (err: any) {
-            alert(`Failed to create schedule: ${err.response?.data?.detail || err.message}`);
-        }
-    };
-
-    const handleDeleteInstance = async (row: any) => {
-        if (!confirm(`Delete instance "${row.instance_id}"? This cannot be undone.`)) return;
+    const handleDelete = async (row: any) => {
+        if (!confirm(`Delete pipeline "${row.job_nm}"? This cannot be undone.`)) return;
         try {
             await api.pipelines.delete(row.id);
-            fetchData();
+            fetchPipelines();
         } catch (err: any) {
             alert(`Failed to delete: ${err.response?.data?.detail || err.message}`);
         }
     };
 
-    const toggleJobExpansion = (jobId: number) => {
-        const next = new Set(expandedJobs);
-        if (next.has(jobId)) next.delete(jobId);
-        else next.add(jobId);
-        setExpandedJobs(next);
-    };
-
-    const filteredDefinitions = definitions.filter(d =>
-        d.job_nm.toLowerCase().includes(search.toLowerCase())
-    );
-
     if (error) {
-        return (
-            <div className="glass" style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                {error}
-            </div>
-        );
+        return <div className="glass" style={{ padding: '4rem', textAlign: 'center' }}>{error}</div>;
     }
 
     if (!metadata) {
-        return (
-            <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                <div style={{ marginBottom: '1rem', opacity: 0.5 }}>Initializing...</div>
-            </div>
-        );
+        return <div style={{ padding: '4rem', textAlign: 'center', opacity: 0.5 }}>Initializing...</div>;
     }
+
+    const filteredPipelines = pipelines.filter(p =>
+        p.job_nm.toLowerCase().includes(search.toLowerCase()) ||
+        (p.template_nm && p.template_nm.toLowerCase().includes(search.toLowerCase()))
+    );
 
     return (
         <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <div>
                     <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Pipelines</h1>
-                    <p style={{ color: 'var(--text-secondary)' }}>Discoverable jobs (YAML Source) and configured instances</p>
+                    <p style={{ color: 'var(--text-secondary)' }}>Inventory of all executable jobs (Singletons & Instances)</p>
                 </div>
                 <RoleGuard requiredRole="DPE_DEVELOPER">
-                    <button className="btn-primary" onClick={() => handleCreateInstance()} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <Plus size={20} /> Register Instance
+                    <button className="btn-primary" onClick={handleCreatePipeline} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Plus size={20} /> Register Pipeline
                     </button>
                 </RoleGuard>
             </div>
@@ -214,173 +201,68 @@ export const PipelineList: React.FC = () => {
                 <Search size={20} color="var(--text-secondary)" />
                 <input
                     type="text"
-                    placeholder="Search by Job name..."
+                    placeholder="Search pipelines..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     style={{ background: 'transparent', border: 'none', outline: 'none', width: '100%' }}
                 />
             </div>
 
-            {/* Hierarchical Table */}
-            <div className="glass" style={{ overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                        <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--glass-border)' }}>
-                            <th style={{ width: '40px' }}></th>
-                            <th style={{ textAlign: 'left', padding: '1rem' }}>Job Source / Instance</th>
-                            <th style={{ textAlign: 'left', padding: '1rem' }}>Team</th>
-                            <th style={{ textAlign: 'left', padding: '1rem' }}>Schedule</th>
-                            <th style={{ textAlign: 'left', padding: '1rem' }}>Status</th>
-                            <th style={{ textAlign: 'left', padding: '1rem' }}>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredDefinitions.length === 0 ? (
-                            <tr>
-                                <td colSpan={6} style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-tertiary)' }}>
-                                    No jobs found for this team. Check your metadata.yaml sync.
-                                </td>
-                            </tr>
-                        ) : filteredDefinitions.map(job => {
-                            const jobInstances = instances.filter(i => i.job_definition_id === job.id);
-                            const isExpanded = expandedJobs.has(job.id);
-
-                            return (
-                                <React.Fragment key={job.id}>
-                                    {/* Parent Row: Job Definition */}
-                                    <tr style={{
-                                        borderBottom: isExpanded ? 'none' : '1px solid var(--glass-border)',
-                                        background: 'rgba(255,255,255,0.01)',
-                                        transition: 'background 0.2s'
-                                    }}>
-                                        <td style={{ padding: '1rem', textAlign: 'center' }}>
-                                            {jobInstances.length > 0 && (
-                                                <button onClick={() => toggleJobExpansion(job.id)} style={{ color: 'var(--text-secondary)' }}>
-                                                    {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                                                </button>
-                                            )}
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                                <div style={{ color: 'var(--accent-primary)' }}><FileCode size={18} /></div>
-                                                <div>
-                                                    <div style={{ fontWeight: 700, fontSize: '1.05rem' }}>{job.job_nm}</div>
-                                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginTop: '0.2rem' }}>{job.description || 'No description provided'}</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ fontSize: '0.85rem' }}>
-                                                <span style={{ fontWeight: 600 }}>{job.team_nm}</span>
-                                            </div>
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                                {job.asset_selection?.slice(0, 2).map((a: string) => (
-                                                    <span key={a} className="badge" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', opacity: 0.7 }}>{a}</span>
-                                                ))}
-                                                {job.asset_selection?.length > 2 && <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>+{job.asset_selection.length - 2} more</span>}
-                                            </div>
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <span className="status-badge" style={{ opacity: 0.6 }}>DEFINITION</span>
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                <button className="btn-secondary" style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }} onClick={() => setViewingDefinition(job)}>
-                                                    View YAML
-                                                </button>
-                                                <RoleGuard requiredRole="DPE_DEVELOPER">
-                                                    <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }} onClick={() => handleCreateInstance(job.id)}>
-                                                        Add Instance
-                                                    </button>
-                                                </RoleGuard>
-                                            </div>
-                                        </td>
-                                    </tr>
-
-                                    {/* Sub-Rows: Job Instances */}
-                                    {isExpanded && jobInstances.map(inst => (
-                                        <tr key={inst.id} style={{
-                                            background: 'rgba(255,255,255,0.03)',
-                                            borderBottom: '1px solid rgba(255,255,255,0.05)',
-                                            fontSize: '0.9rem'
-                                        }}>
-                                            <td></td>
-                                            <td style={{ padding: '0.75rem 1rem 0.75rem 3rem' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-secondary)' }}></div>
-                                                    <a href={`/pipelines/${inst.id}`} style={{ fontWeight: 600, color: 'var(--accent-secondary)', textDecoration: 'none' }}>
-                                                        {inst.instance_id}
-                                                    </a>
-                                                </div>
-                                            </td>
-                                            <td style={{ padding: '0.75rem 1rem', color: 'var(--text-tertiary)' }}>
-                                                —
-                                            </td>
-                                            <td style={{ padding: '0.75rem 1rem' }}>
-                                                <code style={{ fontSize: '0.8rem', background: 'var(--glass-bg)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>
-                                                    {inst.schedule_display}
-                                                </code>
-                                            </td>
-                                            <td style={{ padding: '0.75rem 1rem' }}>
-                                                <span className={inst.actv_ind ? 'status-success' : 'status-error'} style={{ fontSize: '0.75rem' }}>
-                                                    {inst.actv_ind ? 'Active' : 'Paused'}
-                                                </span>
-                                            </td>
-                                            <td style={{ padding: '0.75rem 1rem' }}>
-                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                    <RoleGuard requiredRole="DPE_DEVELOPER">
-                                                        <button onClick={() => handleEditInstance(inst)} style={{ color: 'var(--accent-primary)', opacity: 0.8 }} title="Edit Instance">
-                                                            <Play size={14} style={{ transform: 'rotate(90deg)' }} />
-                                                        </button>
-                                                    </RoleGuard>
-                                                    <RoleGuard requiredRole="DPE_PLATFORM_ADMIN">
-                                                        <button onClick={() => handleDeleteInstance(inst)} style={{ color: 'var(--error)', opacity: 0.6 }} title="Delete Instance">
-                                                            <X size={14} />
-                                                        </button>
-                                                    </RoleGuard>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </React.Fragment>
-                            );
-                        })}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* Modals */}
-            {viewingDefinition && (
-                <JobDefinitionModal
-                    definition={viewingDefinition}
-                    onClose={() => setViewingDefinition(null)}
-                />
-            )}
+            <DynamicTable
+                metadata={metadata.columns}
+                data={filteredPipelines}
+                onLinkClick={(pipeline) => (window.location.href = `/pipelines/${pipeline.id}`)}
+                onEdit={handleEditPipeline}
+                onDelete={handleDelete}
+                linkColumn="job_nm"
+                primaryKey="id"
+                emptyMessage="No pipelines found. Register a new one or instantiate a blueprint."
+            />
 
             {showInstanceModal && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <div className="glass" style={{ width: '600px', padding: '2rem', maxHeight: '90vh', overflowY: 'auto' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                            <h3>{editingInstance ? 'Edit Instance' : 'New Job Instance'}</h3>
+                            <h3>{editingPipeline ? 'Edit Pipeline' : 'Register Pipeline'}</h3>
                             <button onClick={() => setShowInstanceModal(false)}><X /></button>
                         </div>
 
-                        <form onSubmit={handleSubmitInstance} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                             <div>
                                 <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                                    Parent Job Definition *
+                                    Blueprint (Optional for Singletons)
                                 </label>
                                 <select
-                                    disabled={!!editingInstance}
-                                    required
-                                    value={formData.job_definition_id}
-                                    onChange={(e) => setFormData({ ...formData, job_definition_id: parseInt(e.target.value) })}
+                                    disabled={!!editingPipeline}
+                                    value={formData.template_id || ''}
+                                    onChange={(e) => {
+                                        const selectedId = e.target.value ? parseInt(e.target.value) : undefined;
+                                        const selectedBlueprint = blueprints.find(b => b.id === selectedId);
+
+                                        // Generate template JSON from schema if available
+                                        let initialParams: any = {};
+                                        if (selectedBlueprint?.params_schema?.properties) {
+                                            const props = selectedBlueprint.params_schema.properties as any;
+                                            Object.keys(props).forEach(key => {
+                                                initialParams[key] = props[key].default !== undefined ? props[key].default :
+                                                    (props[key].type === 'string' ? '' :
+                                                        (props[key].type === 'number' ? 0 :
+                                                            (props[key].type === 'boolean' ? false : null)));
+                                            });
+                                        }
+
+                                        setFormData({
+                                            ...formData,
+                                            template_id: selectedId,
+                                            params_json: initialParams,
+                                            // Clear YAML if blueprint is selected
+                                            yaml_def: selectedId ? undefined : formData.yaml_def
+                                        });
+                                    }}
                                 >
-                                    <option value={0} disabled>-- Select a Job --</option>
-                                    {definitions.map(d => (
-                                        <option key={d.id} value={d.id}>{d.job_nm} ({d.team_nm})</option>
+                                    <option value="">-- No Blueprint (Singleton) --</option>
+                                    {blueprints.map(b => (
+                                        <option key={b.id} value={b.id}>{b.template_nm}</option>
                                     ))}
                                 </select>
                             </div>
@@ -391,30 +273,104 @@ export const PipelineList: React.FC = () => {
                                 </label>
                                 <input
                                     required
-                                    value={formData.instance_id}
-                                    onChange={(e) => setFormData({ ...formData, instance_id: e.target.value })}
-                                    placeholder="e.g. PROD_DAILY_01"
+                                    value={formData.job_nm}
+                                    onChange={(e) => setFormData({ ...formData, job_nm: e.target.value })}
+                                    placeholder="e.g. prod_sftp_ingestion"
                                 />
                                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                                    Environment or deployment specific identifier
+                                    The unique ID for this execution instance.
                                 </div>
                             </div>
 
                             <div>
                                 <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                                    Description (Optional)
+                                    Description
                                 </label>
                                 <input
                                     value={formData.description}
                                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                    placeholder="e.g. Daily production load for North America"
+                                    placeholder="Brief summary of what this pipeline does"
                                 />
                             </div>
+
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                    Parameters (JSON)
+                                </label>
+                                <textarea
+                                    style={{
+                                        width: '100%',
+                                        height: '150px',
+                                        fontFamily: 'monospace',
+                                        fontSize: '0.85rem',
+                                        background: 'var(--bg-primary)',
+                                        color: '#818cf8',
+                                        padding: '1rem',
+                                        border: '1px solid var(--glass-border)',
+                                        borderRadius: 'var(--radius-md)'
+                                    }}
+                                    value={typeof formData.params_json === 'string' ? formData.params_json : JSON.stringify(formData.params_json, null, 2)}
+                                    onChange={(e) => {
+                                        try {
+                                            // Store as string while editing to allow incomplete JSON
+                                            setFormData({ ...formData, params_json: e.target.value });
+                                        } catch (err) { }
+                                    }}
+                                    onBlur={(e) => {
+                                        try {
+                                            // Try to parse on blur
+                                            const parsed = JSON.parse(e.target.value);
+                                            setFormData({ ...formData, params_json: parsed });
+                                        } catch (err) {
+                                            // Keep as string if invalid, handleSubmit will catch it
+                                        }
+                                    }}
+                                    placeholder='{ "key": "value" }'
+                                />
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                                    Runtime parameters for the pipeline as a JSON object.
+                                </div>
+                            </div>
+
+                            {!formData.template_id && (
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                        YAML Definition (Required for Singletons)
+                                    </label>
+                                    <textarea
+                                        style={{
+                                            width: '100%',
+                                            height: '200px',
+                                            fontFamily: 'monospace',
+                                            fontSize: '0.85rem',
+                                            background: 'var(--bg-primary)',
+                                            color: '#fbbf24', // Different color for YAML
+                                            padding: '1rem',
+                                            border: '1px solid var(--glass-border)',
+                                            borderRadius: 'var(--radius-md)'
+                                        }}
+                                        value={typeof formData.yaml_def === 'string' ? formData.yaml_def : JSON.stringify(formData.yaml_def, null, 2)}
+                                        onChange={(e) => {
+                                            setFormData({ ...formData, yaml_def: e.target.value });
+                                        }}
+                                        onBlur={(e) => {
+                                            try {
+                                                const parsed = JSON.parse(e.target.value);
+                                                setFormData({ ...formData, yaml_def: parsed });
+                                            } catch (err) { }
+                                        }}
+                                        placeholder='{ "jobs": [...] }'
+                                    />
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                                        The executable YAML definition for this singleton.
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="form-group">
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                                     <label style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                                        Scheduling Strategy
+                                        Scheduling
                                     </label>
                                     <button
                                         type="button"
@@ -427,28 +383,15 @@ export const PipelineList: React.FC = () => {
                                 </div>
 
                                 {!useCustomCron ? (
-                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                        <select
-                                            style={{ flex: 1 }}
-                                            value={formData.schedule_id || ''}
-                                            onChange={(e) => setFormData({ ...formData, schedule_id: e.target.value ? parseInt(e.target.value) : undefined })}
-                                        >
-                                            <option value="">-- Manual Execution --</option>
-                                            {schedules.filter(s => s.actv_ind).map(sched => (
-                                                <option key={sched.id} value={sched.id}>
-                                                    {sched.slug} ({sched.cron})
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <button
-                                            type="button"
-                                            className="btn-secondary"
-                                            style={{ padding: '0 0.75rem' }}
-                                            onClick={() => setIsCreatingSchedule(!isCreatingSchedule)}
-                                        >
-                                            <Plus size={16} />
-                                        </button>
-                                    </div>
+                                    <select
+                                        value={formData.schedule_id || ''}
+                                        onChange={(e) => setFormData({ ...formData, schedule_id: e.target.value ? parseInt(e.target.value) : undefined })}
+                                    >
+                                        <option value="">-- Manual Execution --</option>
+                                        {schedules.filter(s => s.actv_ind).map(sched => (
+                                            <option key={sched.id} value={sched.id}>{sched.slug} ({sched.cron})</option>
+                                        ))}
+                                    </select>
                                 ) : (
                                     <input
                                         value={formData.cron_schedule}
@@ -458,20 +401,10 @@ export const PipelineList: React.FC = () => {
                                 )}
                             </div>
 
-                            {isCreatingSchedule && !useCustomCron && (
-                                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '8px' }}>
-                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                        <input placeholder="Slug" value={newScheduleData.slug} onChange={e => setNewScheduleData({ ...newScheduleData, slug: e.target.value })} />
-                                        <input placeholder="Cron" value={newScheduleData.cron} onChange={e => setNewScheduleData({ ...newScheduleData, cron: e.target.value })} />
-                                    </div>
-                                    <button type="button" onClick={handleCreateSchedule} className="btn-primary" style={{ marginTop: '0.5rem', width: '100%', fontSize: '0.8rem' }}>Create Schedule</button>
-                                </div>
-                            )}
-
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                                        Partition Start Date
+                                        Partition Start
                                     </label>
                                     <input
                                         type="date"
@@ -481,20 +414,20 @@ export const PipelineList: React.FC = () => {
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '1.75rem' }}>
                                     <input type="checkbox" id="actv_ind" checked={formData.actv_ind} onChange={e => setFormData({ ...formData, actv_ind: e.target.checked })} />
-                                    <label htmlFor="actv_ind">Active</label>
+                                    <label htmlFor="actv_ind">Active / Runnable</label>
                                 </div>
                             </div>
 
                             <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
                                 <button type="submit" className="btn-primary" style={{ flex: 1 }}>
-                                    {editingInstance ? 'Update Instance' : 'Create Instance'}
+                                    {editingPipeline ? 'Save Changes' : 'Register Pipeline'}
                                 </button>
                                 <button type="button" onClick={() => setShowInstanceModal(false)} className="btn-secondary">Cancel</button>
                             </div>
                         </form>
                     </div>
-                </div>
+                </div >
             )}
-        </div>
+        </div >
     );
 };

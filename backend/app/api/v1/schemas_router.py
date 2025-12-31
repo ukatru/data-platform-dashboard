@@ -13,79 +13,80 @@ from ... import schemas
 
 router = APIRouter()
 
-@router.get("/", response_model=List[schemas.ParamsSchema])
+@router.get("/", response_model=List[schemas.JobTemplate])
 def list_schemas(
     db: Session = Depends(get_db),
     tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context),
     current_user: models.ETLUser = Depends(auth.require_analyst)
 ):
-    """List all parameter schemas for the current organization and active team focus"""
-    query = db.query(models.ETLParamsSchema, models.ETLTeam.team_nm, models.ETLOrg.org_code)\
-        .join(models.ETLTeam, models.ETLParamsSchema.team_id == models.ETLTeam.id)\
-        .join(models.ETLOrg, models.ETLParamsSchema.org_id == models.ETLOrg.id)
+    """List all job templates (blueprints) for the current organization and active team focus"""
+    query = db.query(models.ETLJobTemplate, models.ETLTeam.team_nm, models.ETLOrg.org_code)\
+        .outerjoin(models.ETLTeam, models.ETLJobTemplate.team_id == models.ETLTeam.id)\
+        .outerjoin(models.ETLOrg, models.ETLJobTemplate.org_id == models.ETLOrg.id)
         
     if tenant_ctx.org_id is not None:
-        query = query.filter(models.ETLParamsSchema.org_id == tenant_ctx.org_id)
+        query = query.filter(models.ETLJobTemplate.org_id == tenant_ctx.org_id)
     
-    # Team Filtering: Users can only see schemas for teams they belong to
+    # Team Filtering
     if tenant_ctx.team_id:
-        query = query.filter(models.ETLParamsSchema.team_id == tenant_ctx.team_id)
+        query = query.filter(models.ETLJobTemplate.team_id == tenant_ctx.team_id)
     elif not tenant_ctx.has_permission(auth.Permission.PLATFORM_ADMIN):
         user_team_ids = [m.team_id for m in tenant_ctx.user.team_memberships if m.actv_ind]
-        query = query.filter(models.ETLParamsSchema.team_id.in_(user_team_ids))
+        query = query.filter(models.ETLJobTemplate.team_id.in_(user_team_ids))
         
     results = query.all()
-    schemas_list = []
-    for s, team_nm, org_code in results:
-        s.team_nm = team_nm
-        s.org_code = org_code
-        schemas_list.append(s)
-    return schemas_list
+    templates = []
+    for t, team_nm, org_code in results:
+        data = schemas.JobTemplate.model_validate(t)
+        data.team_nm = team_nm
+        data.org_code = org_code
+        templates.append(data)
+    return templates
 
-@router.post("/", response_model=schemas.ParamsSchema, status_code=status.HTTP_201_CREATED)
-def create_schema(
-    schema: schemas.ParamsSchemaCreate, 
+@router.post("/", response_model=schemas.JobTemplate, status_code=status.HTTP_201_CREATED)
+def create_template(
+    template: schemas.JobTemplate, # This might need a 'Create' variant
     db: Session = Depends(get_db),
     tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context),
     current_user: models.ETLUser = Depends(auth.require_developer)
 ):
-    """Register a new parameter schema"""
-    db_schema = models.ETLParamsSchema(
-        **schema.model_dump(),
+    """Register a new job template"""
+    db_template = models.ETLJobTemplate(
+        **template.model_dump(),
         org_id=tenant_ctx.org_id,
         team_id=tenant_ctx.team_id,
         creat_by_nm=current_user.username
     )
-    db.add(db_schema)
+    db.add(db_template)
     db.commit()
-    db.refresh(db_schema)
-    return db_schema
+    db.refresh(db_template)
+    return db_template
 
-@router.get("/{schema_id}", response_model=schemas.ParamsSchema)
-def get_schema(
-    schema_id: int, 
+@router.get("/{template_id}", response_model=schemas.JobTemplate)
+def get_template(
+    template_id: int, 
     db: Session = Depends(get_db),
     current_user: models.ETLUser = Depends(auth.require_analyst)
 ):
-    """Get schema by ID"""
-    schema = db.query(models.ETLParamsSchema).filter(models.ETLParamsSchema.id == schema_id).first()
-    if not schema:
-        raise HTTPException(status_code=404, detail="Schema not found")
-    return schema
+    """Get template by ID"""
+    template = db.query(models.ETLJobTemplate).filter(models.ETLJobTemplate.id == template_id).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return template
 
-@router.get("/by-job/{job_nm}", response_model=schemas.ParamsSchema)
-def get_schema_by_job(
-    job_nm: str, 
+@router.get("/by-name/{template_nm}", response_model=schemas.JobTemplate)
+def get_template_by_name(
+    template_nm: str, 
     code_location_id: int,
     db: Session = Depends(get_db),
     current_user: models.ETLUser = Depends(auth.require_analyst)
 ):
-    """Get schema by job name and code location"""
-    schema = db.query(models.ETLParamsSchema).filter(
-        models.ETLParamsSchema.job_nm == job_nm,
-        models.ETLParamsSchema.code_location_id == code_location_id
+    """Get template by name and code location"""
+    template = db.query(models.ETLJobTemplate).filter(
+        models.ETLJobTemplate.template_nm == template_nm,
+        models.ETLJobTemplate.code_location_id == code_location_id
     ).first()
     
-    if not schema:
-        raise HTTPException(status_code=404, detail=f"Schema for job '{job_nm}' in code location {code_location_id} not found")
-    return schema
+    if not template:
+        raise HTTPException(status_code=404, detail=f"Template '{template_nm}' not found")
+    return template

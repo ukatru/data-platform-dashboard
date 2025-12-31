@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "dagster"
     POSTGRES_HOST: str = "192.168.2.116"
     POSTGRES_PORT: str = "30722"
-    POSTGRES_DB: str = "dagster_etl_framework"
+    POSTGRES_DB: str = "dpe_framework"
     
     @property
     def database_url(self) -> str:

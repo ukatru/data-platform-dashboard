@@ -5,17 +5,17 @@ import { DynamicTable } from '../../components/DynamicTable';
 import { useAuth } from '../../contexts/AuthContext';
 import { JobDefinitionModal } from '../Pipelines/JobDefinitionModal';
 
-export const JobDefinitionList: React.FC = () => {
+export const BlueprintList: React.FC = () => {
     const { currentTeamId } = useAuth();
     const [metadata, setMetadata] = useState<TableMetadata | null>(null);
-    const [definitions, setDefinitions] = useState<any[]>([]);
+    const [blueprints, setBlueprints] = useState<any[]>([]);
     const [search, setSearch] = useState('');
-    const [viewingDefinition, setViewingDefinition] = useState<any | null>(null);
+    const [viewingBlueprint, setViewingBlueprint] = useState<any | null>(null);
 
     useEffect(() => {
         const fetchMetadata = async () => {
             try {
-                const metaRes = await api.metadata.jobs();
+                const metaRes = await api.metadata.blueprints();
                 setMetadata(metaRes.data);
             } catch (err) {
                 console.error('Failed to fetch metadata', err);
@@ -24,38 +24,38 @@ export const JobDefinitionList: React.FC = () => {
         fetchMetadata();
     }, []);
 
-    const fetchDefinitions = async () => {
+    const fetchBlueprints = async () => {
         try {
-            const res = await api.jobs.list();
-            setDefinitions(res.data);
+            const res = await api.blueprints.list();
+            setBlueprints(res.data);
         } catch (err) {
-            console.error('Failed to fetch definitions', err);
+            console.error('Failed to fetch blueprints', err);
         }
     };
 
     useEffect(() => {
-        fetchDefinitions();
+        fetchBlueprints();
     }, [currentTeamId]);
 
-    const handleView = (definition: any) => {
-        setViewingDefinition(definition);
+    const handleView = (blueprint: any) => {
+        setViewingBlueprint(blueprint);
     };
 
     if (!metadata) {
-        return <div style={{ padding: '2rem', textAlign: 'center', opacity: 0.5 }}>Loading job definitions...</div>;
+        return <div style={{ padding: '2rem', textAlign: 'center', opacity: 0.5 }}>Loading blueprints...</div>;
     }
 
-    const filteredDefinitions = definitions.filter(d =>
-        d.job_nm.toLowerCase().includes(search.toLowerCase()) ||
-        (d.description && d.description.toLowerCase().includes(search.toLowerCase()))
+    const filteredBlueprints = blueprints.filter(b =>
+        b.template_nm.toLowerCase().includes(search.toLowerCase()) ||
+        (b.description && b.description.toLowerCase().includes(search.toLowerCase()))
     );
 
     return (
         <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <div>
-                    <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Job Definitions</h1>
-                    <p style={{ color: 'var(--text-secondary)' }}>All discovered jobs from repository metadata (YAML Source)</p>
+                    <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Blueprints</h1>
+                    <p style={{ color: 'var(--text-secondary)' }}>Library of reusable pipeline patterns (Blueprints)</p>
                 </div>
             </div>
 
@@ -63,7 +63,7 @@ export const JobDefinitionList: React.FC = () => {
                 <Search size={20} color="var(--text-secondary)" />
                 <input
                     type="text"
-                    placeholder="Search jobs..."
+                    placeholder="Search blueprints..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     style={{ background: 'transparent', border: 'none', outline: 'none', width: '100%' }}
@@ -72,17 +72,17 @@ export const JobDefinitionList: React.FC = () => {
 
             <DynamicTable
                 metadata={metadata.columns}
-                data={filteredDefinitions}
+                data={filteredBlueprints}
                 onLinkClick={handleView}
-                linkColumn={['job_nm', 'yaml_def']}
+                linkColumn={['template_nm', 'yaml_def']}
                 primaryKey="id"
-                emptyMessage="No job definitions found for this team. Ensure your repositories have metadata.yaml files and are synced."
+                emptyMessage="No blueprints found for this team. Ensure your repositories have templates defined in YAML."
             />
 
-            {viewingDefinition && (
+            {viewingBlueprint && (
                 <JobDefinitionModal
-                    definition={viewingDefinition}
-                    onClose={() => setViewingDefinition(null)}
+                    definition={viewingBlueprint}
+                    onClose={() => setViewingBlueprint(null)}
                 />
             )}
         </div>
