@@ -15,7 +15,7 @@ export const PipelineList: React.FC = () => {
     const [editingPipeline, setEditingPipeline] = useState<any>(null);
     const [formData, setFormData] = useState({
         job_nm: '',
-        invok_id: '',
+        instance_id: '',
         schedule_id: undefined as number | undefined,
         cron_schedule: '',
         partition_start_dt: '',
@@ -77,7 +77,7 @@ export const PipelineList: React.FC = () => {
         setEditingPipeline(null);
         setFormData({
             job_nm: '',
-            invok_id: '',
+            instance_id: '',
             schedule_id: undefined,
             cron_schedule: '',
             partition_start_dt: '',
@@ -92,7 +92,7 @@ export const PipelineList: React.FC = () => {
         setEditingPipeline(pipeline);
         setFormData({
             job_nm: pipeline.job_nm,
-            invok_id: pipeline.invok_id,
+            instance_id: pipeline.instance_id,
             schedule_id: pipeline.schedule_id,
             cron_schedule: pipeline.cron_schedule || '',
             partition_start_dt: pipeline.partition_start_dt ? new Date(pipeline.partition_start_dt).toISOString().split('T')[0] : '',
@@ -239,16 +239,16 @@ export const PipelineList: React.FC = () => {
 
                             <div>
                                 <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                                    Invocation ID *
+                                    Instance ID *
                                 </label>
                                 <input
                                     required
-                                    value={formData.invok_id}
-                                    onChange={(e) => setFormData({ ...formData, invok_id: e.target.value })}
+                                    value={formData.instance_id}
+                                    onChange={(e) => setFormData({ ...formData, instance_id: e.target.value })}
                                     placeholder="e.g. PROD_001"
                                 />
                                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                                    Environment or instance identifier
+                                    Unique invocation or environment identifier
                                 </div>
                             </div>
 

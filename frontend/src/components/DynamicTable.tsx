@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Edit, Trash2, Copy, Play } from 'lucide-react';
+import { Edit, Trash2, Copy, Play, Lock, Puzzle } from 'lucide-react';
 import { ColumnMetadata } from '../services/api';
 import { RoleName, useAuth } from '../contexts/AuthContext';
 import { RoleGuard } from './RoleGuard';
@@ -79,8 +79,10 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
                 return (
                     <Link
                         to={linkPath(row)}
-                        style={{ color: 'var(--accent-primary)', textDecoration: 'none', fontWeight: 600 }}
+                        style={{ color: 'var(--accent-primary)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}
                     >
+                        {col.name === 'job_nm' && row.source_type === 'static' && <Lock size={14} style={{ opacity: 0.7 }} />}
+                        {col.name === 'job_nm' && row.source_type === 'instance' && <Puzzle size={14} style={{ opacity: 0.7 }} />}
                         {value}
                     </Link>
                 );
@@ -165,7 +167,13 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
                 return <span className={status.className}>{status.label}</span>;
             }
             // Default badge
-            return <span className="status-badge">{value}</span>;
+            return (
+                <span className="status-badge" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    {col.name === 'source_type' && value === 'static' && <Lock size={12} />}
+                    {col.name === 'source_type' && value === 'instance' && <Puzzle size={12} />}
+                    {value.charAt(0).toUpperCase() + value.slice(1)}
+                </span>
+            );
         }
 
         // DateTime rendering
@@ -231,16 +239,28 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
                                         )}
                                         {onEdit && (
                                             <RoleGuard requiredRole={editRole || 'DPE_DEVELOPER'}>
-                                                <button onClick={() => onEdit(row)} style={{ color: 'var(--accent-primary)' }} title="Edit">
-                                                    <Edit size={16} />
-                                                </button>
+                                                {row.source_type === 'static' ? (
+                                                    <button style={{ color: 'var(--text-secondary)', opacity: 0.3, cursor: 'not-allowed' }} title="Static pipelines cannot be edited via Portal">
+                                                        <Edit size={16} />
+                                                    </button>
+                                                ) : (
+                                                    <button onClick={() => onEdit(row)} style={{ color: 'var(--accent-primary)' }} title="Edit">
+                                                        <Edit size={16} />
+                                                    </button>
+                                                )}
                                             </RoleGuard>
                                         )}
                                         {onDelete && (
                                             <RoleGuard requiredRole={deleteRole || 'DPE_PLATFORM_ADMIN'}>
-                                                <button onClick={() => onDelete(row)} style={{ color: 'var(--error)' }} title="Delete">
-                                                    <Trash2 size={16} />
-                                                </button>
+                                                {row.source_type === 'static' ? (
+                                                    <button style={{ color: 'var(--text-secondary)', opacity: 0.3, cursor: 'not-allowed' }} title="Static pipelines cannot be deleted via Portal">
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                ) : (
+                                                    <button onClick={() => onDelete(row)} style={{ color: 'var(--error)' }} title="Delete">
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                )}
                                             </RoleGuard>
                                         )}
                                     </div>

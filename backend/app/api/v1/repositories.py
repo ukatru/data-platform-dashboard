@@ -164,13 +164,14 @@ def delete_repository(
         )
     
     # Check for dependencies (pipelines, schemas)
-    pipeline_count = db.query(models.ETLJob).filter(models.ETLJob.code_location_id == id).count()
+    static_count = db.query(models.ETLJobDefinition).filter(models.ETLJobDefinition.code_location_id == id).count()
+    inst_count = db.query(models.ETLJobInstance).filter(models.ETLJobInstance.code_location_id == id).count()
     schema_count = db.query(models.ETLParamsSchema).filter(models.ETLParamsSchema.code_location_id == id).count()
     
-    if pipeline_count > 0 or schema_count > 0:
+    if static_count > 0 or inst_count > 0 or schema_count > 0:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Cannot delete repository: {pipeline_count} pipeline(s) and {schema_count} schema(s) are still using it"
+            detail=f"Cannot delete repository: {static_count} static, {inst_count} instance(s) and {schema_count} schema(s) are still using it"
         )
     
     db.delete(db_repo)

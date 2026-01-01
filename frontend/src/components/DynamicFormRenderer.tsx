@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 interface DynamicFormRendererProps {
     pipelineId: number;
     onSubmit?: (params: any) => void;
+    readOnly?: boolean;
 }
 
 /**
@@ -13,9 +14,11 @@ interface DynamicFormRendererProps {
  */
 export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     pipelineId,
-    onSubmit
+    onSubmit,
+    readOnly
 }) => {
-    const { isDeveloper } = useAuth();
+    const { hasPermission } = useAuth();
+    const canEdit = hasPermission('CAN_EDIT_PIPELINES');
     const [schema, setSchema] = useState<any>(null);
     const [formData, setFormData] = useState<any>({});
     const [loading, setLoading] = useState(true);
@@ -86,7 +89,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
             formData={formData}
             onSubmit={handleSubmit}
             onChange={(data: any) => setFormData(data)}
-            readOnly={!isDeveloper}
+            readOnly={readOnly || !canEdit}
         />
     );
 };

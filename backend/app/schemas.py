@@ -12,6 +12,10 @@ class AuditBase(BaseModel):
     class Config:
         from_attributes = True
 
+class ModelBase(BaseModel):
+    class Config:
+        from_attributes = True
+
 # Column metadata for dynamic table rendering
 class ColumnMetadata(BaseModel):
     name: str
@@ -29,7 +33,7 @@ class TableMetadata(BaseModel):
     primary_key: str
 
 # SaaS Hierarchy Schemas
-class OrgBase(BaseModel):
+class OrgBase(ModelBase):
     org_nm: str
     org_code: str
     description: Optional[str] = None
@@ -41,7 +45,7 @@ class OrgCreate(OrgBase):
 class Org(OrgBase, AuditBase):
     id: int
 
-class TeamBase(BaseModel):
+class TeamBase(ModelBase):
     org_id: Optional[int] = None
     team_nm: str
     description: Optional[str] = None
@@ -59,9 +63,9 @@ class TeamUpdate(BaseModel):
 class Team(TeamBase, AuditBase):
     id: int
 
-class CodeLocationBase(BaseModel):
-    team_id: int
+class CodeLocationBase(ModelBase):
     location_nm: str
+    team_id: int
     repo_url: Optional[str] = None
 
 class CodeLocationCreate(CodeLocationBase):
@@ -73,6 +77,8 @@ class CodeLocationUpdate(BaseModel):
 
 class CodeLocation(CodeLocationBase, AuditBase):
     id: int
+    team_nm: Optional[str] = None
+    org_code: Optional[str] = None
 
 # Connection schemas
 class ConnectionBase(BaseModel):
@@ -127,29 +133,9 @@ class ConnTypeSchemaCreate(ConnTypeSchemaBase):
 class ConnTypeSchema(ConnTypeSchemaBase, AuditBase):
     id: int
 
-# Code Location (Repository) schemas
-class CodeLocationBase(BaseModel):
-    location_nm: str
-    team_id: int
-    repo_url: Optional[str] = None
-
-class CodeLocationCreate(CodeLocationBase):
-    pass
-
-class CodeLocationUpdate(BaseModel):
-    location_nm: Optional[str] = None
-    repo_url: Optional[str] = None
-
-class CodeLocation(CodeLocationBase, AuditBase):
-    id: int
-    team_nm: Optional[str] = None
-    org_code: Optional[str] = None
-
-    class Config:
-        from_attributes = True
 
 # Parameter Schema (JSON Schema Registry)
-class ParamsSchemaBase(BaseModel):
+class ParamsSchemaBase(ModelBase):
     job_nm: str
     json_schema: Dict[str, Any]
     description: Optional[str] = None
@@ -168,13 +154,16 @@ class ParamsSchema(ParamsSchemaBase, AuditBase):
 # Job schemas
 class JobBase(BaseModel):
     job_nm: str
-    invok_id: str
+    instance_id: str
+    source_type: Literal["static", "instance", "blueprint"] = "static"
     org_id: Optional[int] = None
     team_id: Optional[int] = None
     code_location_id: Optional[int] = None
+    schema_link: Optional[str] = None
     schedule_id: Optional[int] = None
     cron_schedule: Optional[str] = None
     partition_start_dt: Optional[datetime] = None
+    yaml_content: Optional[str] = None
     actv_ind: Optional[bool] = True
 
 class JobCreate(JobBase):
@@ -254,7 +243,7 @@ class Role(RoleBase):
     class Config:
         from_attributes = True
 
-class TeamMemberBase(BaseModel):
+class TeamMemberBase(ModelBase):
     user_id: int
     team_id: int
     role_id: int
@@ -269,7 +258,7 @@ class TeamMember(TeamMemberBase, AuditBase):
     team: Optional['TeamBase'] = None
     role: Optional[Role] = None
 
-class UserBase(BaseModel):
+class UserBase(ModelBase):
     username: str
     full_nm: str
     email: Optional[str] = None

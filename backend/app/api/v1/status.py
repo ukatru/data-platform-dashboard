@@ -22,40 +22,39 @@ def get_summary(
 ):
     """Get summary statistics filtered by organization and optionally team"""
     conn_query = db.query(models.ETLConnection)
-    job_query = db.query(models.ETLJob)
+    def_query = db.query(models.ETLJobDefinition)
+    inst_query = db.query(models.ETLJobInstance)
     status_query = db.query(models.ETLJobStatus)
     
     # 1. Base Org Filtering
     if tenant_ctx.org_id is not None:
         conn_query = conn_query.filter(models.ETLConnection.org_id == tenant_ctx.org_id)
-        job_query = job_query.filter(models.ETLJob.org_id == tenant_ctx.org_id)
+        def_query = def_query.filter(models.ETLJobDefinition.org_id == tenant_ctx.org_id)
+        inst_query = inst_query.filter(models.ETLJobInstance.org_id == tenant_ctx.org_id)
         status_query = status_query.filter(models.ETLJobStatus.org_id == tenant_ctx.org_id)
 
     # 2. Team Filtering (Implicit or Explicit)
     effective_team_id = team_id or tenant_ctx.team_id
     
     sched_query = db.query(models.ETLSchedule)
-    # Note: Phase 8 will add org_id/team_id to ETLSchedule. 
-    # For now, we filter jobs and then count unique schedules linked to those jobs 
-    # OR we just filter by the jobs the user has access to.
     
     if effective_team_id:
         conn_query = conn_query.filter(models.ETLConnection.team_id == effective_team_id)
-        job_query = job_query.filter(models.ETLJob.team_id == effective_team_id)
+        def_query = def_query.filter(models.ETLJobDefinition.team_id == effective_team_id)
+        inst_query = inst_query.filter(models.ETLJobInstance.team_id == effective_team_id)
         status_query = status_query.filter(models.ETLJobStatus.team_id == effective_team_id)
-        # Filters schedules linked to jobs in this team
-        sched_query = sched_query.join(models.ETLJob).filter(models.ETLJob.team_id == effective_team_id)
+        # Sched filtering is a bit harder now as they are decentralized, counting template-based for now
+        # OR we can just show total registered templates
     elif not tenant_ctx.has_permission(auth.Permission.PLATFORM_ADMIN):
-        # If not an admin and no specific team selected, show only teams the user belongs to
         user_team_ids = [m.team_id for m in tenant_ctx.user.team_memberships if m.actv_ind]
         conn_query = conn_query.filter(models.ETLConnection.team_id.in_(user_team_ids))
-        job_query = job_query.filter(models.ETLJob.team_id.in_(user_team_ids))
+        def_query = def_query.filter(models.ETLJobDefinition.team_id.in_(user_team_ids))
+        inst_query = inst_query.filter(models.ETLJobInstance.team_id.in_(user_team_ids))
         status_query = status_query.filter(models.ETLJobStatus.team_id.in_(user_team_ids))
-        sched_query = sched_query.join(models.ETLJob).filter(models.ETLJob.team_id.in_(user_team_ids))
 
     conn_count = conn_query.count()
-    job_count = job_query.count()
-    sched_count = sched_query.distinct().count()
+    job_count = def_query.count() + inst_query.count()
+    sched_count = sched_query.count()
     
     # Operational stats
     now = datetime.utcnow()

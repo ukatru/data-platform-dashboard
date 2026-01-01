@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 import sys
 
 sys.path.append("/home/ukatru/github/dagster-dag-factory/src")
@@ -76,15 +76,17 @@ def get_schema(
 @router.get("/by-job/{job_nm}", response_model=schemas.ParamsSchema)
 def get_schema_by_job(
     job_nm: str, 
-    code_location_id: int,
+    code_location_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: models.ETLUser = Depends(auth.require_analyst)
 ):
     """Get schema by job name and code location"""
-    schema = db.query(models.ETLParamsSchema).filter(
-        models.ETLParamsSchema.job_nm == job_nm,
-        models.ETLParamsSchema.code_location_id == code_location_id
-    ).first()
+    query = db.query(models.ETLParamsSchema).filter(models.ETLParamsSchema.job_nm == job_nm)
+    
+    if code_location_id:
+        query = query.filter(models.ETLParamsSchema.code_location_id == code_location_id)
+        
+    schema = query.first()
     
     if not schema:
         raise HTTPException(status_code=404, detail=f"Schema for job '{job_nm}' in code location {code_location_id} not found")
