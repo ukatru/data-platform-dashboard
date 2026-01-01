@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { api, TableMetadata } from '../../services/api';
 import { DynamicTable } from '../../components/DynamicTable';
 import { Plus, Search, X } from 'lucide-react';
-import { RoleGuard } from '../../components/RoleGuard';
 import { useAuth } from '../../contexts/AuthContext';
 
 export const PipelineList: React.FC = () => {
@@ -72,21 +71,6 @@ export const PipelineList: React.FC = () => {
     useEffect(() => {
         fetchPipelines();
     }, [currentTeamId]);
-
-    const handleCreate = () => {
-        setEditingPipeline(null);
-        setFormData({
-            job_nm: '',
-            instance_id: '',
-            schedule_id: undefined,
-            cron_schedule: '',
-            partition_start_dt: '',
-            actv_ind: true
-        });
-        setUseCustomCron(false);
-        setIsCreatingSchedule(false);
-        setShowModal(true);
-    };
 
     const handleEdit = (pipeline: any) => {
         setEditingPipeline(pipeline);
@@ -180,13 +164,8 @@ export const PipelineList: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <div>
                     <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Pipelines</h1>
-                    <p style={{ color: 'var(--text-secondary)' }}>Manage ETL pipeline configurations</p>
+                    <p style={{ color: 'var(--text-secondary)' }}>Manage and monitor existing ETL executions</p>
                 </div>
-                <RoleGuard requiredRole="DPE_DEVELOPER">
-                    <button className="btn-primary" onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <Plus size={20} /> New Pipeline
-                    </button>
-                </RoleGuard>
             </div>
 
             <div className="glass" style={{ padding: '1.5rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>

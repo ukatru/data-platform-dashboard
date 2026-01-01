@@ -10,7 +10,8 @@ import {
     Activity,
     UserCircle,
     ShieldCheck,
-    GitBranch
+    GitBranch,
+    Puzzle
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { RoleGuard } from './RoleGuard';
@@ -103,6 +104,7 @@ export const Sidebar: React.FC = () => {
 
             <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <NavItem to="/" icon={LayoutDashboard} label="Dashboard" />
+                <NavItem to="/blueprints" icon={Puzzle} label="Blueprints" requiredPermission="CAN_VIEW_LOGS" />
                 <NavItem to="/pipelines" icon={Workflow} label="Pipelines" requiredPermission="CAN_VIEW_LOGS" />
                 <NavItem to="/connections" icon={Database} label="Connections" requiredPermission="CAN_MANAGE_CONNECTIONS" />
                 <NavItem to="/schemas" icon={FileJson} label="Schemas" requiredPermission="CAN_VIEW_LOGS" />

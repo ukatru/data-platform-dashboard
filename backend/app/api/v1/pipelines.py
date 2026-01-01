@@ -16,6 +16,8 @@ from ...services.validator import validate_params_against_schema
 router = APIRouter()
 
 @router.get("", response_model=List[schemas.Job])
+@router.get("/", response_model=List[schemas.Job])
+@router.get("/instances", response_model=List[schemas.Job])
 def list_pipelines(
     db: Session = Depends(get_db),
     tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context),
@@ -62,9 +64,8 @@ def list_pipelines(
 
     jobs = []
     
-    # Process Static Jobs
+    # Process Static Jobs (Identified by STATIC instance_id)
     for job_def, team_nm, org_code, repo_url in static_query.all():
-        # Static jobs get parameters from ETLJobParameter override
         params_override = db.query(models.ETLJobParameter).filter(
             models.ETLJobParameter.job_nm == job_def.job_nm,
             models.ETLJobParameter.team_id == job_def.team_id
@@ -95,7 +96,7 @@ def list_pipelines(
             repo_url=repo_url
         ))
 
-    # Process Instance Jobs
+    # Process Instance Jobs (Linked to Blueprints)
     for inst, b_nm, team_nm, org_code, s_slug, s_cron, repo_url in instance_query.all():
         schedule_txt = "Manual"
         if inst.cron_schedule:
@@ -104,7 +105,7 @@ def list_pipelines(
             schedule_txt = f"{s_slug} ({s_cron})"
 
         jobs.append(schemas.Job(
-            id=inst.id, # Note: IDs might collide between defs and instances if not handled, but for listing it's usually fine or we prefix
+            id=inst.id,
             job_nm=b_nm,
             instance_id=inst.instance_id,
             source_type="instance",
@@ -126,6 +127,37 @@ def list_pipelines(
         
     return jobs
 
+@router.get("/blueprints", response_model=List[schemas.Blueprint])
+def list_blueprints(
+    db: Session = Depends(get_db),
+    tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context),
+    current_user: models.ETLUser = Depends(auth.require_analyst)
+):
+    """List all registered blueprints (logic templates) for the current organization"""
+    query = db.query(
+        models.ETLBlueprint,
+        models.ETLTeam.team_nm,
+        models.ETLOrg.org_code,
+        models.ETLCodeLocation.repo_url
+    )\
+    .join(models.ETLTeam, models.ETLBlueprint.team_id == models.ETLTeam.id)\
+    .join(models.ETLOrg, models.ETLBlueprint.org_id == models.ETLOrg.id)\
+    .outerjoin(models.ETLCodeLocation, models.ETLBlueprint.code_location_id == models.ETLCodeLocation.id)
+    
+    if tenant_ctx.org_id is not None:
+        query = query.filter(models.ETLBlueprint.org_id == tenant_ctx.org_id)
+    if tenant_ctx.team_id:
+        query = query.filter(models.ETLBlueprint.team_id == tenant_ctx.team_id)
+        
+    results = query.all()
+    blueprints = []
+    for b, team_nm, org_code, repo_url in results:
+        b.team_nm = team_nm
+        b.org_code = org_code
+        b.repo_url = repo_url
+        blueprints.append(b)
+    return blueprints
+    
 @router.post("", response_model=schemas.Job, status_code=status.HTTP_201_CREATED)
 def create_instance(
     job: schemas.JobCreate, 

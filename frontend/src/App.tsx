@@ -13,7 +13,8 @@ import {
     CodeLocationManagement,
     Login,
     Profile,
-    RolesManagement
+    RolesManagement,
+    BlueprintList
 } from './pages';
 import { Sidebar } from './components/Sidebar';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -75,6 +76,12 @@ function AppRoutes() {
             <Route path="/pipelines" element={
                 <ProtectedRoute requiredPermission="CAN_VIEW_LOGS">
                     <Layout><PipelineList /></Layout>
+                </ProtectedRoute>
+            } />
+
+            <Route path="/blueprints" element={
+                <ProtectedRoute requiredPermission="CAN_VIEW_LOGS">
+                    <Layout><BlueprintList /></Layout>
                 </ProtectedRoute>
             } />
 

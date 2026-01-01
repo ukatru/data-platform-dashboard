@@ -179,6 +179,25 @@ class JobUpdate(BaseModel):
     partition_start_dt: Optional[datetime] = None
     actv_ind: Optional[bool] = True
 
+# Blueprint schemas
+class BlueprintBase(ModelBase):
+    blueprint_nm: str
+    description: Optional[str] = None
+    yaml_content: Optional[str] = None
+    params_schema: Optional[Dict[str, Any]] = None
+    code_location_id: Optional[int] = None
+    org_id: Optional[int] = None
+    team_id: Optional[int] = None
+
+class BlueprintCreate(BlueprintBase):
+    pass
+
+class Blueprint(BlueprintBase, AuditBase):
+    id: int
+    team_nm: Optional[str] = None
+    org_code: Optional[str] = None
+    repo_url: Optional[str] = None
+
 class Job(JobBase, AuditBase):
     id: int
     schedule: Optional[str] = None
