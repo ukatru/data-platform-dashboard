@@ -15,7 +15,7 @@ from ...services.validator import validate_params_against_schema
 
 router = APIRouter()
 
-@router.get("/", response_model=List[schemas.Job])
+@router.get("", response_model=List[schemas.Job])
 def list_pipelines(
     db: Session = Depends(get_db),
     tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context),
@@ -27,10 +27,12 @@ def list_pipelines(
     static_query = db.query(
         models.ETLJobDefinition,
         models.ETLTeam.team_nm,
-        models.ETLOrg.org_code
+        models.ETLOrg.org_code,
+        models.ETLCodeLocation.repo_url
     )\
     .join(models.ETLTeam, models.ETLJobDefinition.team_id == models.ETLTeam.id)\
-    .join(models.ETLOrg, models.ETLJobDefinition.org_id == models.ETLOrg.id)
+    .join(models.ETLOrg, models.ETLJobDefinition.org_id == models.ETLOrg.id)\
+    .outerjoin(models.ETLCodeLocation, models.ETLJobDefinition.code_location_id == models.ETLCodeLocation.id)
     
     if tenant_ctx.org_id is not None:
         static_query = static_query.filter(models.ETLJobDefinition.org_id == tenant_ctx.org_id)
@@ -44,12 +46,14 @@ def list_pipelines(
         models.ETLTeam.team_nm,
         models.ETLOrg.org_code,
         models.ETLSchedule.slug,
-        models.ETLSchedule.cron
+        models.ETLSchedule.cron,
+        models.ETLCodeLocation.repo_url
     )\
     .join(models.ETLBlueprint, models.ETLJobInstance.blueprint_id == models.ETLBlueprint.id)\
     .join(models.ETLTeam, models.ETLJobInstance.team_id == models.ETLTeam.id)\
     .join(models.ETLOrg, models.ETLJobInstance.org_id == models.ETLOrg.id)\
-    .outerjoin(models.ETLSchedule, models.ETLJobInstance.schedule_id == models.ETLSchedule.id)
+    .outerjoin(models.ETLSchedule, models.ETLJobInstance.schedule_id == models.ETLSchedule.id)\
+    .outerjoin(models.ETLCodeLocation, models.ETLJobInstance.code_location_id == models.ETLCodeLocation.id)
 
     if tenant_ctx.org_id is not None:
         instance_query = instance_query.filter(models.ETLJobInstance.org_id == tenant_ctx.org_id)
@@ -59,7 +63,7 @@ def list_pipelines(
     jobs = []
     
     # Process Static Jobs
-    for job_def, team_nm, org_code in static_query.all():
+    for job_def, team_nm, org_code, repo_url in static_query.all():
         # Static jobs get parameters from ETLJobParameter override
         params_override = db.query(models.ETLJobParameter).filter(
             models.ETLJobParameter.job_nm == job_def.job_nm,
@@ -87,11 +91,12 @@ def list_pipelines(
             creat_by_nm=job_def.creat_by_nm,
             creat_dttm=job_def.creat_dttm,
             updt_by_nm=job_def.updt_by_nm,
-            updt_dttm=job_def.updt_dttm
+            updt_dttm=job_def.updt_dttm,
+            repo_url=repo_url
         ))
 
     # Process Instance Jobs
-    for inst, b_nm, team_nm, org_code, s_slug, s_cron in instance_query.all():
+    for inst, b_nm, team_nm, org_code, s_slug, s_cron, repo_url in instance_query.all():
         schedule_txt = "Manual"
         if inst.cron_schedule:
             schedule_txt = f"Custom: {inst.cron_schedule}"
@@ -115,12 +120,13 @@ def list_pipelines(
             creat_by_nm=inst.creat_by_nm,
             creat_dttm=inst.creat_dttm,
             updt_by_nm=inst.updt_by_nm,
-            updt_dttm=inst.updt_dttm
+            updt_dttm=inst.updt_dttm,
+            repo_url=repo_url
         ))
         
     return jobs
 
-@router.post("/", response_model=schemas.Job, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=schemas.Job, status_code=status.HTTP_201_CREATED)
 def create_instance(
     job: schemas.JobCreate, 
     db: Session = Depends(get_db),

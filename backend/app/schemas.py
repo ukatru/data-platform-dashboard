@@ -164,6 +164,7 @@ class JobBase(BaseModel):
     cron_schedule: Optional[str] = None
     partition_start_dt: Optional[datetime] = None
     yaml_content: Optional[str] = None
+    repo_url: Optional[str] = None
     actv_ind: Optional[bool] = True
 
 class JobCreate(JobBase):

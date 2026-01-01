@@ -8,7 +8,7 @@ from metadata_framework import models
 
 router = APIRouter()
 
-@router.get("/", response_model=List[schemas.User])
+@router.get("", response_model=List[schemas.User])
 def list_users(
     db: Session = Depends(get_db),
     tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context),
@@ -19,7 +19,7 @@ def list_users(
         query = query.filter(models.ETLUser.org_id == tenant_ctx.org_id)
     return query.all()
 
-@router.post("/", response_model=schemas.User)
+@router.post("", response_model=schemas.User)
 def create_user(
     user_in: schemas.UserCreate,
     db: Session = Depends(get_db),

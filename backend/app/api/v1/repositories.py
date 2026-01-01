@@ -13,7 +13,7 @@ from ... import schemas
 
 router = APIRouter()
 
-@router.get("/", response_model=List[schemas.CodeLocation])
+@router.get("", response_model=List[schemas.CodeLocation])
 def list_repositories(
     db: Session = Depends(get_db),
     tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context),
@@ -62,7 +62,7 @@ def get_repository(
     
     return repo
 
-@router.post("/", response_model=schemas.CodeLocation, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=schemas.CodeLocation, status_code=status.HTTP_201_CREATED)
 def create_repository(
     repository: schemas.CodeLocationCreate,
     db: Session = Depends(get_db),

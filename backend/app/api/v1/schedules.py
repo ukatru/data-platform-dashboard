@@ -13,7 +13,7 @@ from ... import schemas
 
 router = APIRouter()
 
-@router.get("/", response_model=List[schemas.Schedule])
+@router.get("", response_model=List[schemas.Schedule])
 def list_schedules(
     db: Session = Depends(get_db),
     tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context)
@@ -42,7 +42,7 @@ def list_schedules(
         schedules.append(s)
     return schedules
 
-@router.post("/", response_model=schemas.Schedule, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=schemas.Schedule, status_code=status.HTTP_201_CREATED)
 def create_schedule(
     sched_in: schemas.ScheduleCreate, 
     db: Session = Depends(get_db),

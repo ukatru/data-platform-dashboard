@@ -45,7 +45,7 @@ class DiagnosticTracer:
             if message:
                 self.logs[-1]["message"] = message
 
-@router.get("/", response_model=List[schemas.Connection])
+@router.get("", response_model=List[schemas.Connection])
 def list_connections(
     db: Session = Depends(get_db),
     tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context),
@@ -79,7 +79,7 @@ def list_connections(
         conns.append(c)
     return conns
 
-@router.post("/", response_model=schemas.Connection, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=schemas.Connection, status_code=status.HTTP_201_CREATED)
 def create_connection(
     conn: schemas.ConnectionCreate, 
     db: Session = Depends(get_db),

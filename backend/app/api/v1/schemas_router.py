@@ -13,7 +13,7 @@ from ... import schemas
 
 router = APIRouter()
 
-@router.get("/", response_model=List[schemas.ParamsSchema])
+@router.get("", response_model=List[schemas.ParamsSchema])
 def list_schemas(
     db: Session = Depends(get_db),
     tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context),
@@ -42,7 +42,7 @@ def list_schemas(
         schemas_list.append(s)
     return schemas_list
 
-@router.post("/", response_model=schemas.ParamsSchema, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=schemas.ParamsSchema, status_code=status.HTTP_201_CREATED)
 def create_schema(
     schema: schemas.ParamsSchemaCreate, 
     db: Session = Depends(get_db),

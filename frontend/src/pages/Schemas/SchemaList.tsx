@@ -10,6 +10,7 @@ export const SchemaList: React.FC = () => {
     const [metadata, setMetadata] = useState<TableMetadata | null>(null);
     const [schemas, setSchemas] = useState<any[]>([]);
     const [codeLocations, setCodeLocations] = useState<any[]>([]);
+    const [pipelines, setPipelines] = useState<any[]>([]);
     const [showModal, setShowModal] = useState(false);
     const [viewingSchema, setViewingSchema] = useState<any>(null);
     const [formData, setFormData] = useState({
@@ -22,12 +23,14 @@ export const SchemaList: React.FC = () => {
     useEffect(() => {
         const fetchReferenceData = async () => {
             try {
-                const [metaRes, locsRes] = await Promise.all([
+                const [metaRes, locsRes, pipesRes] = await Promise.all([
                     api.metadata.schemas(),
-                    api.management.listCodeLocations()
+                    api.management.listCodeLocations(),
+                    api.pipelines.list()
                 ]);
                 setMetadata(metaRes.data);
                 setCodeLocations(locsRes.data);
+                setPipelines(pipesRes.data);
             } catch (err) {
                 console.error('Failed to fetch reference data', err);
             }
@@ -112,7 +115,12 @@ export const SchemaList: React.FC = () => {
 
             <DynamicTable
                 metadata={enhancedMetadata.columns}
-                data={schemas}
+                data={schemas.map(s => ({
+                    ...s,
+                    // Mark as read-only if authored by the Git Sync process
+                    _readonly: s.creat_by_nm === 'ParamsDagsterFactory.Sync',
+                    source: s.creat_by_nm === 'ParamsDagsterFactory.Sync' ? 'GIT' : 'PORTAL'
+                }))}
                 onLinkClick={handleView}
                 linkColumn="job_nm"
                 primaryKey="id"
@@ -131,14 +139,30 @@ export const SchemaList: React.FC = () => {
                         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                             <div>
                                 <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                                    Job Name *
+                                    Pipeline Name (Job Name) *
                                 </label>
-                                <input
+                                <select
                                     required
                                     value={formData.job_nm}
-                                    onChange={(e) => setFormData({ ...formData, job_nm: e.target.value })}
-                                    placeholder="e.g. sales_daily_load"
-                                />
+                                    onChange={(e) => {
+                                        const selectedJob = e.target.value;
+                                        const pipe = pipelines.find(p => p.job_nm === selectedJob);
+                                        setFormData({
+                                            ...formData,
+                                            job_nm: selectedJob,
+                                            code_location_id: pipe?.code_location_id || formData.code_location_id
+                                        });
+                                    }}
+                                >
+                                    <option value="">Select Pipeline...</option>
+                                    {pipelines
+                                        .filter(p => !schemas.some(s => s.job_nm === p.job_nm && s.code_location_id === p.code_location_id))
+                                        .map(p => (
+                                            <option key={`${p.job_nm}-${p.id}`} value={p.job_nm}>
+                                                {p.job_nm} {p.instance_id !== 'STATIC' ? `(${p.instance_id})` : ''}
+                                            </option>
+                                        ))}
+                                </select>
                             </div>
 
                             <div>

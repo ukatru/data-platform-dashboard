@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Edit, Trash2, Copy, Play, Lock, Puzzle } from 'lucide-react';
+import { Edit, Trash2, Copy, Play, Lock, Puzzle, Settings, Check } from 'lucide-react';
 import { ColumnMetadata } from '../services/api';
 import { RoleName, useAuth } from '../contexts/AuthContext';
 import { RoleGuard } from './RoleGuard';
@@ -37,7 +37,84 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
     emptyMessage = "No records found"
 }) => {
     const { hasPermission } = useAuth();
-    const visibleColumns = metadata.filter(col => col.visible);
+
+    // Column Visibility State
+    const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() => {
+        const initial: Record<string, boolean> = {};
+        metadata.forEach(col => {
+            initial[col.name] = col.visible !== false;
+        });
+        return initial;
+    });
+
+    // Column Widths State
+    const [widths, setWidths] = useState<Record<string, number>>(() => {
+        const initial: Record<string, number> = {};
+        metadata.forEach(col => {
+            if (col.width) {
+                initial[col.name] = parseInt(col.width);
+            } else {
+                initial[col.name] = 150; // Default
+            }
+        });
+        return initial;
+    });
+
+    const [showSettings, setShowSettings] = useState(false);
+    const settingsRef = useRef<HTMLDivElement>(null);
+    const resizingColumn = useRef<string | null>(null);
+    const startX = useRef<number>(0);
+    const startWidth = useRef<number>(0);
+
+    const visibleColumns = metadata.filter(col => columnVisibility[col.name]);
+
+    // Handle clicks outside settings menu
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
+                setShowSettings(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Column Resizing Logic
+    const handleResizeStart = (e: React.MouseEvent, colName: string) => {
+        e.preventDefault();
+        resizingColumn.current = colName;
+        startX.current = e.pageX;
+        startWidth.current = widths[colName] || 150;
+
+        document.addEventListener('mousemove', handleResizeMove);
+        document.addEventListener('mouseup', handleResizeEnd);
+        document.body.style.cursor = 'col-resize';
+    };
+
+    const handleResizeMove = (e: MouseEvent) => {
+        if (!resizingColumn.current) return;
+        const diff = e.pageX - startX.current;
+        const newWidth = Math.max(50, startWidth.current + diff);
+
+        setWidths(prev => ({
+            ...prev,
+            [resizingColumn.current!]: newWidth
+        }));
+    };
+
+    const handleResizeEnd = () => {
+        resizingColumn.current = null;
+        document.removeEventListener('mousemove', handleResizeMove);
+        document.removeEventListener('mouseup', handleResizeEnd);
+        document.body.style.cursor = 'default';
+    };
+
+    const toggleColumn = (colName: string) => {
+        setColumnVisibility(prev => ({
+            ...prev,
+            [colName]: !prev[colName]
+        }));
+    };
 
     const getPermissionForRole = (role?: RoleName) => {
         if (role === 'DPE_PLATFORM_ADMIN') return 'PLATFORM_ADMIN';
@@ -169,9 +246,36 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
             // Default badge
             return (
                 <span className="status-badge" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    {col.name === 'source_type' && value === 'static' && <Lock size={12} />}
-                    {col.name === 'source_type' && value === 'instance' && <Puzzle size={12} />}
-                    {value.charAt(0).toUpperCase() + value.slice(1)}
+                    {col.name === 'source' ? (
+                        <span style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.2rem 0.6rem',
+                            borderRadius: '100px',
+                            background: row.creat_by_nm === 'ParamsDagsterFactory.Sync' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(148, 163, 184, 0.1)',
+                            border: `1px solid ${row.creat_by_nm === 'ParamsDagsterFactory.Sync' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(148, 163, 184, 0.2)'}`
+                        }}>
+                            <div style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: '50%',
+                                background: row.creat_by_nm === 'ParamsDagsterFactory.Sync' ? 'var(--success)' : '#94a3b8',
+                                boxShadow: row.creat_by_nm === 'ParamsDagsterFactory.Sync' ? '0 0 8px rgba(16, 185, 129, 0.4)' : 'none'
+                            }} />
+                            <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>
+                                {row.creat_by_nm === 'ParamsDagsterFactory.Sync' ? 'GIT' : 'PORTAL'}
+                            </span>
+                        </span>
+                    ) : (
+                        <>
+                            {col.name === 'source_type' && value === 'static' && <Lock size={12} />}
+                            {col.name === 'source_type' && value === 'instance' && <Puzzle size={12} />}
+                            {value && typeof value === 'string' && value.length > 0 && (
+                                <span>{value.charAt(0).toUpperCase() + value.slice(1)}</span>
+                            )}
+                        </>
+                    )}
                 </span>
             );
         }
@@ -201,75 +305,174 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
     };
 
     return (
-        <div className="glass" style={{ overflowX: 'auto' }}>
-            <table style={{ minWidth: '1000px' }}>
-                <thead>
-                    <tr>
-                        {visibleColumns.map(col => (
-                            <th key={col.name} style={{ width: col.width || 'auto' }}>
-                                {col.label}
-                            </th>
-                        ))}
-                        {isActionsVisible && <th style={{ width: '120px' }}>Actions</th>}
-                    </tr>
-                </thead>
-                <tbody>
-                    {data.length === 0 ? (
+        <div className="glass" style={{ position: 'relative' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '1rem' }}>
+                <div ref={settingsRef} style={{ position: 'relative' }}>
+                    <button
+                        onClick={() => setShowSettings(!showSettings)}
+                        className="btn-secondary"
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem' }}
+                        title="Column Settings"
+                    >
+                        <Settings size={18} />
+                    </button>
+
+                    {showSettings && (
+                        <div className="glass" style={{
+                            position: 'absolute',
+                            top: 'calc(100% + 10px)',
+                            right: 0,
+                            zIndex: 1000,
+                            padding: '1.25rem',
+                            minWidth: '220px',
+                            background: '#1a1f2e', // Solid dark background for clarity
+                            boxShadow: '0 15px 35px rgba(0,0,0,0.8), 0 5px 15px rgba(0,0,0,0.5)',
+                            border: '1px solid var(--accent-primary)',
+                            borderRadius: '12px',
+                            backdropFilter: 'none' // Remove blur for maximum clarity in dropdown
+                        }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.75rem' }}>
+                                <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>Visible Columns</h4>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+                                {metadata.map(col => (
+                                    <label
+                                        key={col.name}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.85rem',
+                                            cursor: 'pointer',
+                                            fontSize: '0.85rem',
+                                            padding: '0.4rem 0.5rem',
+                                            borderRadius: '6px',
+                                            transition: 'background 0.2s',
+                                            background: 'rgba(255,255,255,0.03)'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                                    >
+                                        <div style={{
+                                            width: '20px',
+                                            height: '20px',
+                                            borderRadius: '5px',
+                                            border: `1px solid ${columnVisibility[col.name] ? 'var(--accent-primary)' : 'var(--glass-border)'}`,
+                                            background: columnVisibility[col.name] ? 'var(--accent-primary)' : 'transparent',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s'
+                                        }}>
+                                            {columnVisibility[col.name] && <Check size={14} color="white" strokeWidth={3} />}
+                                        </div>
+                                        <input
+                                            type="checkbox"
+                                            checked={columnVisibility[col.name]}
+                                            onChange={() => toggleColumn(col.name)}
+                                            style={{ display: 'none' }}
+                                        />
+                                        <span style={{ color: columnVisibility[col.name] ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                                            {col.label}
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+                <table style={{ minWidth: '1000px', tableLayout: 'fixed' }}>
+                    <thead>
                         <tr>
-                            <td colSpan={visibleColumns.length + (isActionsVisible ? 1 : 0)} style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-tertiary)' }}>
-                                {emptyMessage}
-                            </td>
-                        </tr>
-                    ) : data.map((row) => (
-                        <tr key={row[primaryKey]}>
                             {visibleColumns.map(col => (
-                                <td key={col.name}>
-                                    {renderCell(row, col)}
-                                </td>
-                            ))}
-                            {isActionsVisible && (
-                                <td>
-                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                        {onTest && (
-                                            <RoleGuard requiredRole={testRole || 'DPE_DATA_ANALYST'}>
-                                                <button onClick={() => onTest(row)} style={{ color: 'var(--accent-secondary)' }} title="Test Connection">
-                                                    <Play size={16} />
-                                                </button>
-                                            </RoleGuard>
-                                        )}
-                                        {onEdit && (
-                                            <RoleGuard requiredRole={editRole || 'DPE_DEVELOPER'}>
-                                                {row.source_type === 'static' ? (
-                                                    <button style={{ color: 'var(--text-secondary)', opacity: 0.3, cursor: 'not-allowed' }} title="Static pipelines cannot be edited via Portal">
-                                                        <Edit size={16} />
-                                                    </button>
-                                                ) : (
-                                                    <button onClick={() => onEdit(row)} style={{ color: 'var(--accent-primary)' }} title="Edit">
-                                                        <Edit size={16} />
-                                                    </button>
-                                                )}
-                                            </RoleGuard>
-                                        )}
-                                        {onDelete && (
-                                            <RoleGuard requiredRole={deleteRole || 'DPE_PLATFORM_ADMIN'}>
-                                                {row.source_type === 'static' ? (
-                                                    <button style={{ color: 'var(--text-secondary)', opacity: 0.3, cursor: 'not-allowed' }} title="Static pipelines cannot be deleted via Portal">
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                ) : (
-                                                    <button onClick={() => onDelete(row)} style={{ color: 'var(--error)' }} title="Delete">
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                )}
-                                            </RoleGuard>
-                                        )}
+                                <th
+                                    key={col.name}
+                                    style={{
+                                        width: `${widths[col.name] || 150}px`,
+                                        position: 'relative'
+                                    }}
+                                >
+                                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {col.label}
                                     </div>
-                                </td>
-                            )}
+                                    <div
+                                        onMouseDown={(e) => handleResizeStart(e, col.name)}
+                                        style={{
+                                            position: 'absolute',
+                                            right: 0,
+                                            top: 0,
+                                            bottom: 0,
+                                            width: '4px',
+                                            cursor: 'col-resize',
+                                            zIndex: 10
+                                        }}
+                                        className="resize-handle"
+                                    />
+                                </th>
+                            ))}
+                            {isActionsVisible && <th style={{ width: '120px' }}>Actions</th>}
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {data.length === 0 ? (
+                            <tr>
+                                <td colSpan={visibleColumns.length + (isActionsVisible ? 1 : 0)} style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-tertiary)' }}>
+                                    {emptyMessage}
+                                </td>
+                            </tr>
+                        ) : data.map((row) => (
+                            <tr key={row[primaryKey]}>
+                                {visibleColumns.map(col => (
+                                    <td key={col.name} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={String(row[col.name] || '')}>
+                                        {renderCell(row, col)}
+                                    </td>
+                                ))}
+                                {isActionsVisible && (
+                                    <td>
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            {onTest && (
+                                                <RoleGuard requiredRole={testRole || 'DPE_DATA_ANALYST'}>
+                                                    <button onClick={() => onTest(row)} style={{ color: 'var(--accent-secondary)' }} title="Test Connection">
+                                                        <Play size={16} />
+                                                    </button>
+                                                </RoleGuard>
+                                            )}
+                                            {onEdit && (
+                                                <RoleGuard requiredRole={editRole || 'DPE_DEVELOPER'}>
+                                                    {row._readonly || row.source_type === 'static' ? (
+                                                        <button style={{ color: 'var(--text-secondary)', opacity: 0.3, cursor: 'not-allowed' }} title="This item is managed in code and cannot be edited via Portal">
+                                                            <Edit size={16} />
+                                                        </button>
+                                                    ) : (
+                                                        <button onClick={() => onEdit(row)} style={{ color: 'var(--accent-primary)' }} title="Edit">
+                                                            <Edit size={16} />
+                                                        </button>
+                                                    )}
+                                                </RoleGuard>
+                                            )}
+                                            {onDelete && (
+                                                <RoleGuard requiredRole={deleteRole || 'DPE_PLATFORM_ADMIN'}>
+                                                    {row._readonly || row.source_type === 'static' ? (
+                                                        <button style={{ color: 'var(--text-secondary)', opacity: 0.3, cursor: 'not-allowed' }} title="This item is managed in code and cannot be deleted via Portal">
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    ) : (
+                                                        <button onClick={() => onDelete(row)} style={{ color: 'var(--error)' }} title="Delete">
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    )}
+                                                </RoleGuard>
+                                            )}
+                                        </div>
+                                    </td>
+                                )}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 };

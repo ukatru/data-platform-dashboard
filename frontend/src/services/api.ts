@@ -42,8 +42,8 @@ export const api = {
 
     // Users (Admin Only)
     users: {
-        list: () => apiInstance.get(`${API_BASE}/users/`),
-        create: (data: any) => apiInstance.post(`${API_BASE}/users/`, data),
+        list: () => apiInstance.get(`${API_BASE}/users`),
+        create: (data: any) => apiInstance.post(`${API_BASE}/users`, data),
         update: (id: number, data: any) => apiInstance.put(`${API_BASE}/users/${id}`, data),
         listRoles: () => apiInstance.get(`${API_BASE}/users/roles`),
         changePassword: (data: any) => apiInstance.post(`${API_BASE}/users/me/password`, data),
@@ -61,9 +61,9 @@ export const api = {
 
     // Connections
     connections: {
-        list: () => apiInstance.get(`${API_BASE}/connections/`),
+        list: () => apiInstance.get(`${API_BASE}/connections`),
         get: (id: number) => apiInstance.get(`${API_BASE}/connections/${id}`),
-        create: (data: any) => apiInstance.post(`${API_BASE}/connections/`, data),
+        create: (data: any) => apiInstance.post(`${API_BASE}/connections`, data),
         update: (id: number, data: any) => apiInstance.put(`${API_BASE}/connections/${id}`, data),
         delete: (id: number) => apiInstance.delete(`${API_BASE}/connections/${id}`),
         test: (id: number) => apiInstance.post(`${API_BASE}/connections/${id}/test`),
@@ -75,35 +75,35 @@ export const api = {
 
     // Schedules
     schedules: {
-        list: () => apiInstance.get(`${API_BASE}/schedules/`),
+        list: () => apiInstance.get(`${API_BASE}/schedules`),
         get: (id: number) => apiInstance.get(`${API_BASE}/schedules/${id}`),
-        create: (data: any) => apiInstance.post(`${API_BASE}/schedules/`, data),
+        create: (data: any) => apiInstance.post(`${API_BASE}/schedules`, data),
         update: (id: number, data: any) => apiInstance.put(`${API_BASE}/schedules/${id}`, data),
         delete: (id: number) => apiInstance.delete(`${API_BASE}/schedules/${id}`),
     },
 
     // Schemas
     schemas: {
-        list: () => apiInstance.get(`${API_BASE}/schemas/`),
+        list: () => apiInstance.get(`${API_BASE}/schemas`),
         get: (id: number) => apiInstance.get(`${API_BASE}/schemas/${id}`),
         getByJob: (jobName: string) => apiInstance.get(`${API_BASE}/schemas/by-job/${jobName}`),
-        create: (data: any) => apiInstance.post(`${API_BASE}/schemas/`, data),
+        create: (data: any) => apiInstance.post(`${API_BASE}/schemas`, data),
     },
 
     // Repositories (Code Locations)
     repositories: {
-        list: () => apiInstance.get(`${API_BASE}/repositories/`),
+        list: () => apiInstance.get(`${API_BASE}/repositories`),
         get: (id: number) => apiInstance.get(`${API_BASE}/repositories/${id}`),
-        create: (data: any) => apiInstance.post(`${API_BASE}/repositories/`, data),
+        create: (data: any) => apiInstance.post(`${API_BASE}/repositories`, data),
         update: (id: number, data: any) => apiInstance.put(`${API_BASE}/repositories/${id}`, data),
         delete: (id: number) => apiInstance.delete(`${API_BASE}/repositories/${id}`),
     },
 
     // Pipelines
     pipelines: {
-        list: () => apiInstance.get(`${API_BASE}/pipelines/`),
+        list: () => apiInstance.get(`${API_BASE}/pipelines`),
         get: (id: number) => apiInstance.get(`${API_BASE}/pipelines/${id}`),
-        create: (data: any) => apiInstance.post(`${API_BASE}/pipelines/`, data),
+        create: (data: any) => apiInstance.post(`${API_BASE}/pipelines`, data),
         update: (id: number, data: any) => apiInstance.put(`${API_BASE}/pipelines/${id}`, data),
         delete: (id: number) => apiInstance.delete(`${API_BASE}/pipelines/${id}`),
         getParams: (id: number) => apiInstance.get(`${API_BASE}/pipelines/${id}/params`),
