@@ -5,6 +5,7 @@ import { DynamicTable } from '../../components/DynamicTable';
 import { Search, Puzzle, Rocket, Info, Workflow } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { RoleGuard } from '../../components/RoleGuard';
+import { BlueprintInspectModal } from '../../components/BlueprintInspectModal';
 
 export const BlueprintList: React.FC = () => {
     const { currentTeamId } = useAuth();
@@ -13,6 +14,7 @@ export const BlueprintList: React.FC = () => {
     const [search, setSearch] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+    const [selectedBlueprint, setSelectedBlueprint] = useState<any>(null);
 
     useEffect(() => {
         const fetchMetadata = async () => {
@@ -46,6 +48,7 @@ export const BlueprintList: React.FC = () => {
     );
 
     const handleInstantiate = (blueprint: any) => {
+        setSelectedBlueprint(null);
         alert(`Instantiating ${blueprint.blueprint_nm}... This will open the Phase 6 Creation Modal soon!`);
     };
 
@@ -182,7 +185,12 @@ export const BlueprintList: React.FC = () => {
                                         <Rocket size={16} /> Use Blueprint
                                     </button>
                                 </RoleGuard>
-                                <button className="btn-secondary" style={{ padding: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="View Details">
+                                <button
+                                    className="btn-secondary"
+                                    style={{ padding: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                    title="View Details"
+                                    onClick={() => setSelectedBlueprint(b)}
+                                >
                                     <Info size={18} />
                                 </button>
                             </div>
@@ -207,6 +215,15 @@ export const BlueprintList: React.FC = () => {
                     <Puzzle size={48} style={{ marginBottom: '1rem', opacity: 0.2 }} />
                     <p>No blueprints found matching your search.</p>
                 </div>
+            )}
+
+            {/* Inspection Modal */}
+            {selectedBlueprint && (
+                <BlueprintInspectModal
+                    blueprint={selectedBlueprint}
+                    onClose={() => setSelectedBlueprint(null)}
+                    onUse={handleInstantiate}
+                />
             )}
         </div>
     );

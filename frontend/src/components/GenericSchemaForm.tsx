@@ -1,7 +1,100 @@
 import React from 'react';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
-import { RJSFSchema } from '@rjsf/utils';
+import { RJSFSchema, WidgetProps, FieldTemplateProps } from '@rjsf/utils';
+import { motion } from 'framer-motion';
+
+// --- Custom Premium Widgets ---
+
+const CustomTextWidget = (props: WidgetProps) => {
+    return (
+        <input
+            type="text"
+            className="nexus-input"
+            value={props.value || ''}
+            required={props.required}
+            disabled={props.disabled || props.readonly}
+            onChange={(event) => props.onChange(event.target.value)}
+            placeholder={props.placeholder}
+        />
+    );
+};
+
+const CustomSelectWidget = (props: WidgetProps) => {
+    return (
+        <select
+            className="nexus-select"
+            value={props.value}
+            required={props.required}
+            disabled={props.disabled || props.readonly}
+            onChange={(event) => props.onChange(event.target.value)}
+        >
+            {!props.required && <option value="">Select...</option>}
+            {props.options.enumOptions?.map((option: any, index: number) => (
+                <option key={index} value={option.value}>
+                    {option.label}
+                </option>
+            ))}
+        </select>
+    );
+};
+
+const CustomCheckboxWidget = (props: WidgetProps) => {
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0' }}>
+            <input
+                type="checkbox"
+                style={{ width: '1.25rem', height: '1.25rem', cursor: 'pointer' }}
+                checked={!!props.value}
+                disabled={props.disabled || props.readonly}
+                onChange={(event) => props.onChange(event.target.checked)}
+            />
+            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{props.label}</span>
+        </div>
+    );
+};
+
+// --- Custom Field Template for Layout ---
+
+const CustomFieldTemplate = (props: FieldTemplateProps) => {
+    const { id, classNames, label, help, required, description, errors, children, schema } = props;
+
+    // Hide fieldsets for objects to keep it flat and clean
+    if (schema.type === 'object' && !label) {
+        return <div className={classNames}>{children}</div>;
+    }
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`${classNames} nexus-field-container`}
+            style={{ marginBottom: '1.5rem' }}
+        >
+            {label && (
+                <label htmlFor={id} style={{
+                    display: 'block',
+                    marginBottom: '0.5rem',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: 'var(--accent-primary)'
+                }}>
+                    {label}{required ? '*' : ''}
+                </label>
+            )}
+            {description && (
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginBottom: '0.75rem' }}>
+                    {description}
+                </div>
+            )}
+            {children}
+            {errors}
+            {help && <div style={{ fontSize: '0.75rem', marginTop: '0.25rem', opacity: 0.6 }}>{help}</div>}
+        </motion.div>
+    );
+};
 
 interface GenericSchemaFormProps {
     schema: RJSFSchema;
@@ -12,6 +105,12 @@ interface GenericSchemaFormProps {
     customActions?: (formData: any) => React.ReactNode;
     readOnly?: boolean;
 }
+
+const customWidgets = {
+    TextWidget: CustomTextWidget,
+    SelectWidget: CustomSelectWidget,
+    CheckboxWidget: CustomCheckboxWidget,
+};
 
 /**
  * A reusable wrapper around react-jsonschema-form with the dashboard's styling and validation.
@@ -27,7 +126,6 @@ export const GenericSchemaForm: React.FC<GenericSchemaFormProps> = ({
 }) => {
     const [localFormData, setLocalFormData] = React.useState(initialFormData);
 
-    // Sync local state when external formData changes (e.g. when switching types or loading)
     React.useEffect(() => {
         setLocalFormData(initialFormData);
     }, [initialFormData]);
@@ -38,11 +136,13 @@ export const GenericSchemaForm: React.FC<GenericSchemaFormProps> = ({
     };
 
     return (
-        <div className="dynamic-form">
+        <div className="dynamic-form nexus-theme">
             <Form
                 schema={schema}
                 formData={localFormData}
                 validator={validator}
+                widgets={customWidgets}
+                templates={{ FieldTemplate: CustomFieldTemplate }}
                 onSubmit={({ formData }) => onSubmit(formData)}
                 onChange={({ formData }) => handleChange(formData)}
                 readonly={readOnly}
@@ -51,14 +151,61 @@ export const GenericSchemaForm: React.FC<GenericSchemaFormProps> = ({
                     <div />
                 ) : (
                     children || customActions?.(localFormData) || (
-                        <div style={{ marginTop: '2rem' }}>
-                            <button type="submit" className="btn-primary" style={{ width: '100%' }}>
+                        <div style={{ marginTop: '2.5rem' }}>
+                            <button type="submit" className="btn-primary" style={{
+                                width: '100%',
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                padding: '1rem'
+                            }}>
                                 Save Configuration
                             </button>
                         </div>
                     )
                 )}
             </Form>
+
+            <style>{`
+                .nexus-theme .nexus-input, 
+                .nexus-theme .nexus-select {
+                    background: rgba(255, 255, 255, 0.03) !important;
+                    border: 1px solid var(--glass-border) !important;
+                    color: var(--text-primary) !important;
+                    padding: 0.85rem 1rem !important;
+                    border-radius: 8px !important;
+                    font-size: 0.95rem !important;
+                    width: 100% !important;
+                    transition: all 0.2s ease !important;
+                }
+
+                .nexus-theme .nexus-input:focus, 
+                .nexus-theme .nexus-select:focus {
+                    background: rgba(99, 102, 241, 0.05) !important;
+                    border-color: var(--accent-primary) !important;
+                    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15) !important;
+                    outline: none !important;
+                }
+
+                .nexus-theme .nexus-select option {
+                    background-color: var(--bg-secondary);
+                    color: var(--text-primary);
+                }
+
+                .nexus-theme .nexus-field-container {
+                    background: rgba(255, 255, 255, 0.01);
+                    padding: 1.25rem;
+                    border-radius: 12px;
+                    border: 1px solid transparent;
+                    transition: all 0.2s ease;
+                }
+
+                .nexus-theme .nexus-field-container:hover {
+                    background: rgba(255, 255, 255, 0.03);
+                    border-color: rgba(255, 255, 255, 0.05);
+                }
+            `}</style>
         </div>
     );
 };
