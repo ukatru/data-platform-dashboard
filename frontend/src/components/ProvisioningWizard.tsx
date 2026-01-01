@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronRight, ChevronLeft, Rocket, Check, AlertCircle, Info, Layout, Settings, Activity, Calendar, Clock } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Rocket, Check, AlertCircle, Info, Layout, Settings, Activity, Calendar, Clock, ShieldCheck, HelpCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GenericSchemaForm } from './GenericSchemaForm';
 import { api } from '../services/api';
@@ -23,10 +23,17 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Identity State
+    const [idValidating, setIdValidating] = useState(false);
+    const [idAvailable, setIdAvailable] = useState<boolean | null>(null);
+
     // Schedule Picker State
     const [scheduleType, setScheduleType] = useState<'manual' | 'daily' | 'weekly' | 'monthly'>('manual');
     const [scheduleTime, setScheduleTime] = useState('02:00');
     const [scheduleDay, setScheduleDay] = useState('1'); // Monday for weekly, 1st for monthly
+    const [monthlyMode, setMonthlyMode] = useState<'date' | 'day'>('date');
+    const [monthlyOrdinal, setMonthlyOrdinal] = useState('1'); // 1st, 2nd, etc.
+    const [isLastDayOfMonth, setIsLastDayOfMonth] = useState(false);
 
     // Teams State
     const [teams, setTeams] = useState<any[]>([]);
@@ -51,7 +58,6 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
                     const res = await api.management.listTeams();
                     availableTeams = res.data;
                 } else {
-                    // Regular users: Only show teams where they are NOT a Viewer
                     availableTeams = (user?.team_memberships || [])
                         .filter(tm => tm.role.role_nm !== 'Viewer')
                         .map(tm => ({
@@ -62,7 +68,6 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
                 }
                 setTeams(availableTeams);
 
-                // Initial team selection
                 if (availableTeams.length > 0) {
                     const initialTeamId = blueprint.team_id || currentTeamId || availableTeams[0].id;
                     const hasSelected = availableTeams.some((t: any) => t.id === initialTeamId);
@@ -82,6 +87,37 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
         loadTeams();
     }, [user, isOrgAdmin, currentTeamId, blueprint.team_id]);
 
+    // Instance ID Validation Debounce
+    useEffect(() => {
+        if (!formData.instance_id) {
+            setIdAvailable(null);
+            setError(null);
+            return;
+        }
+
+        // Immediately reset availability while typing to avoid "sticky" green checkmarks
+        setIdAvailable(null);
+
+        const timer = setTimeout(async () => {
+            setIdValidating(true);
+            try {
+                const res = await api.pipelines.validateId(formData.instance_id);
+                setIdAvailable(res.data.available);
+                if (!res.data.available) {
+                    setError(`ID "${formData.instance_id}" is taken: ${res.data.reason}`);
+                } else {
+                    setError(null);
+                }
+            } catch (err) {
+                console.error("Validation failed", err);
+            } finally {
+                setIdValidating(false);
+            }
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [formData.instance_id]);
+
     const steps: { key: WizardStep; label: string; icon: any }[] = [
         { key: 'identity', label: 'Identity', icon: Layout },
         { key: 'config', label: 'Configuration', icon: Settings },
@@ -99,14 +135,37 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
 
         if (scheduleType === 'daily') return `0 ${m} ${h} * * *`;
         if (scheduleType === 'weekly') return `0 ${m} ${h} * * ${scheduleDay}`;
-        if (scheduleType === 'monthly') return `0 ${m} ${h} ${scheduleDay} * *`;
+        if (scheduleType === 'monthly') {
+            if (monthlyMode === 'date') {
+                const dayPart = isLastDayOfMonth ? 'L' : scheduleDay;
+                return `0 ${m} ${h} ${dayPart} * *`;
+            } else {
+                // Ordinal support (e.g., 3rd Friday)
+                // croniter supports "#" for ordinal: 5#3 is 3rd Friday
+                // and "L" for last day of week: 5L is last Friday
+                const dayOfWeekPart = monthlyOrdinal === 'L' ? `${scheduleDay}L` : `${scheduleDay}#${monthlyOrdinal}`;
+                return `0 ${m} ${h} * * ${dayOfWeekPart}`;
+            }
+        }
         return null;
     };
 
-    const handleNext = () => {
+    const handleNext = async () => {
         if (step === 'identity') {
             if (!formData.instance_id) {
                 setError("Instance ID is required.");
+                return;
+            }
+            if (idValidating) {
+                setError("Validation in progress... please wait.");
+                return;
+            }
+            if (idAvailable !== true) {
+                setError("Please choose a unique Instance ID (must be validated).");
+                return;
+            }
+            if (!formData.description || formData.description.length < 10) {
+                setError("Description is mandatory (min 10 chars) for production traceability.");
                 return;
             }
             if (!formData.team_id) {
@@ -270,14 +329,21 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
                                 <div className="grid grid-cols-2 gap-6">
                                     <div className="nexus-field-container">
                                         <label className="nexus-label">Unique Instance ID *</label>
-                                        <input
-                                            type="text"
-                                            className="nexus-input"
-                                            placeholder="e.g. sales-ingest-v1"
-                                            value={formData.instance_id}
-                                            onChange={(e) => setFormData({ ...formData, instance_id: e.target.value })}
-                                        />
-                                        <p className="field-hint">Used for runtime routing and identification.</p>
+                                        <div style={{ position: 'relative' }}>
+                                            <input
+                                                type="text"
+                                                className={`nexus-input ${idAvailable === false ? 'border-red-500' : ''}`}
+                                                placeholder="e.g. sales-ingest-v1"
+                                                value={formData.instance_id}
+                                                onChange={(e) => setFormData({ ...formData, instance_id: e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '') })}
+                                            />
+                                            <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }}>
+                                                {idValidating && <div className="spinner-xs" />}
+                                                {idAvailable === true && <ShieldCheck size={16} color="var(--success)" />}
+                                                {idAvailable === false && <AlertCircle size={16} color="#f87171" />}
+                                            </div>
+                                        </div>
+                                        <p className="field-hint">Used for runtime routing and identification. Only letters, numbers, hyphens, and underscores allowed.</p>
                                     </div>
 
                                     <div className="nexus-field-container">
@@ -348,13 +414,15 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
                                 style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}
                             >
                                 <div className="nexus-field-container">
-                                    <label className="nexus-label">Execution Schedule</label>
+                                    <label className="nexus-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        Execution Schedule <span title="Define when this pipeline should run automatically."><HelpCircle size={14} color="var(--text-tertiary)" className="cursor-help" /></span>
+                                    </label>
                                     <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
                                         {[
-                                            { id: 'manual', label: 'Manual' },
-                                            { id: 'daily', label: 'Daily' },
-                                            { id: 'weekly', label: 'Weekly' },
-                                            { id: 'monthly', label: 'Monthly' }
+                                            { id: 'manual', label: 'Manual', tip: 'Run on demand only' },
+                                            { id: 'daily', label: 'Daily', tip: 'Once every day' },
+                                            { id: 'weekly', label: 'Weekly', tip: 'Once every week' },
+                                            { id: 'monthly', label: 'Monthly', tip: 'Once every month' }
                                         ].map(opt => (
                                             <button
                                                 key={opt.id}
@@ -368,10 +436,15 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
                                                     borderColor: scheduleType === opt.id ? 'var(--accent-primary)' : 'var(--glass-border)',
                                                     color: scheduleType === opt.id ? 'white' : 'var(--text-secondary)',
                                                     fontWeight: 600,
-                                                    transition: 'all 0.2s'
+                                                    transition: 'all 0.2s',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'center',
+                                                    gap: '0.25rem'
                                                 }}
                                             >
-                                                {opt.label}
+                                                <span>{opt.label}</span>
+                                                <span style={{ fontSize: '0.65rem', fontWeight: 400, opacity: 0.7 }}>{opt.tip}</span>
                                             </button>
                                         ))}
                                     </div>
@@ -394,6 +467,9 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
                                                 value={scheduleTime}
                                                 onChange={(e) => setScheduleTime(e.target.value)}
                                             />
+                                            <p className="field-hint" style={{ color: 'var(--accent-primary)', fontSize: '0.7rem' }}>
+                                                Note: All times are in UTC to ensure global consistency.
+                                            </p>
                                         </div>
 
                                         {scheduleType === 'weekly' && (
@@ -412,26 +488,128 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
                                         )}
 
                                         {scheduleType === 'monthly' && (
-                                            <div className="nexus-field-container">
-                                                <label className="nexus-label">Day of Month</label>
-                                                <input
-                                                    type="number"
-                                                    min="1"
-                                                    max="31"
-                                                    className="nexus-input"
-                                                    value={scheduleDay}
-                                                    onChange={(e) => setScheduleDay(e.target.value)}
-                                                />
+                                            <div className="nexus-field-container" style={{ gridColumn: '1 / span 2' }}>
+                                                <label className="nexus-label">Monthly strategy</label>
+                                                <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                                                    {[
+                                                        { id: 'date', label: 'Day of Month', icon: Calendar },
+                                                        { id: 'day', label: 'Relative Day', icon: Clock }
+                                                    ].map(strat => (
+                                                        <button
+                                                            key={strat.id}
+                                                            onClick={() => setMonthlyMode(strat.id as any)}
+                                                            style={{
+                                                                padding: '0.6rem 1.25rem',
+                                                                borderRadius: '8px',
+                                                                background: monthlyMode === strat.id ? 'var(--accent-primary)' : 'rgba(255,255,255,0.03)',
+                                                                border: '1px solid',
+                                                                borderColor: monthlyMode === strat.id ? 'var(--accent-primary)' : 'var(--glass-border)',
+                                                                color: monthlyMode === strat.id ? 'white' : 'var(--text-secondary)',
+                                                                fontSize: '0.75rem',
+                                                                fontWeight: 600,
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '0.5rem',
+                                                                transition: 'all 0.2s'
+                                                            }}
+                                                        >
+                                                            <strat.icon size={14} />
+                                                            {strat.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+
+                                                {monthlyMode === 'date' ? (
+                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                                                        <div className="nexus-field-container">
+                                                            <label className="nexus-label">Day of Month</label>
+                                                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                                                <input
+                                                                    type="number"
+                                                                    min="1"
+                                                                    max="31"
+                                                                    className="nexus-input"
+                                                                    value={scheduleDay}
+                                                                    onChange={(e) => {
+                                                                        setScheduleDay(e.target.value);
+                                                                        setIsLastDayOfMonth(false);
+                                                                    }}
+                                                                    disabled={isLastDayOfMonth}
+                                                                    style={{ flex: 1 }}
+                                                                />
+                                                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={isLastDayOfMonth}
+                                                                        onChange={(e) => setIsLastDayOfMonth(e.target.checked)}
+                                                                    />
+                                                                    Last Day
+                                                                </label>
+                                                            </div>
+                                                            <p className="field-hint">Useful for month-end reconciliation jobs.</p>
+                                                        </div>
+                                                        <div /> {/* Spacer */}
+                                                    </div>
+                                                ) : (
+                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                                                        <div className="nexus-field-container">
+                                                            <label className="nexus-label">Occurrence</label>
+                                                            <select className="nexus-select" value={monthlyOrdinal} onChange={(e) => setMonthlyOrdinal(e.target.value)}>
+                                                                <option value="1">First</option>
+                                                                <option value="2">Second</option>
+                                                                <option value="3">Third</option>
+                                                                <option value="4">Fourth</option>
+                                                                <option value="L">Last</option>
+                                                            </select>
+                                                        </div>
+                                                        <div className="nexus-field-container">
+                                                            <label className="nexus-label">Day of Week</label>
+                                                            <select className="nexus-select" value={scheduleDay} onChange={(e) => setScheduleDay(e.target.value)}>
+                                                                <option value="1">Monday</option>
+                                                                <option value="2">Tuesday</option>
+                                                                <option value="3">Wednesday</option>
+                                                                <option value="4">Thursday</option>
+                                                                <option value="5">Friday</option>
+                                                                <option value="6">Saturday</option>
+                                                                <option value="0">Sunday</option>
+                                                            </select>
+                                                        </div>
+                                                        <div style={{ gridColumn: '1 / span 2' }}>
+                                                            <p className="field-hint" style={{ color: 'var(--accent-primary)', opacity: 0.9 }}>
+                                                                Example: "The {
+                                                                    monthlyOrdinal === 'L' ? 'Last' :
+                                                                        ['1st', '2nd', '3rd', '4th'][parseInt(monthlyOrdinal) - 1]
+                                                                } {
+                                                                    ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][parseInt(scheduleDay)]
+                                                                } of every month."
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </motion.div>
                                 )}
 
-                                <div className="glass" style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(0,0,0,0.2)' }}>
-                                    <Info size={16} color="var(--accent-primary)" />
-                                    <span style={{ fontSize: '0.85rem' }}>
-                                        Resulting Cron: <code style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>{getCronString() || 'N/A (Ad-hoc)'}</code>
-                                    </span>
+                                <div className="glass" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', background: 'rgba(0,0,0,0.2)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                        <Info size={16} color="var(--accent-primary)" />
+                                        <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                                            Scheduling Preview
+                                        </span>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '2rem' }}>
+                                        <div>
+                                            <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Technical Cron</div>
+                                            <code style={{ color: 'var(--accent-primary)', fontWeight: 600, fontSize: '0.9rem' }}>{getCronString() || 'N/A (Ad-hoc)'}</code>
+                                        </div>
+                                        <div>
+                                            <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Next Execution</div>
+                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                                {scheduleType === 'manual' ? 'Trigger manually via UI' : 'Calculated by engine'}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </motion.div>
                         )}
@@ -460,7 +638,20 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
                                             <Calendar size={14} /> {scheduleType.toUpperCase()}
                                         </div>
                                         {scheduleType !== 'manual' && (
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--accent-primary)' }}>{getCronString()}</div>
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', marginTop: '0.25rem' }}>
+                                                {scheduleType === 'monthly' ? (
+                                                    monthlyMode === 'date' ? (
+                                                        isLastDayOfMonth ? 'Last day of every month' : `Day ${scheduleDay} of every month`
+                                                    ) : (
+                                                        `${monthlyOrdinal === 'L' ? 'Last' : ['First', 'Second', 'Third', 'Fourth'][parseInt(monthlyOrdinal) - 1]} ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][parseInt(scheduleDay)]} of every month`
+                                                    )
+                                                ) : scheduleType === 'weekly' ? (
+                                                    `Every ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][parseInt(scheduleDay)]}`
+                                                ) : (
+                                                    'Every day'
+                                                )}
+                                                <span style={{ opacity: 0.6, marginLeft: '0.5rem' }}>({getCronString()})</span>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
@@ -498,6 +689,7 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
                             <button
                                 className="btn-primary"
                                 onClick={handleNext}
+                                disabled={step === 'identity' && (idAvailable !== true || idValidating)}
                                 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '100px', justifyContent: 'center', fontSize: '0.85rem' }}
                             >
                                 Next <ChevronRight size={16} />
@@ -560,7 +752,7 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
                     overflow-y: auto;
                     padding-right: 1rem;
                 }
-                /* Custom scrollbar for better look */
+                /* Custom scrollbar */
                 .compact-config-scroll::-webkit-scrollbar {
                     width: 4px;
                 }
@@ -574,6 +766,20 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
                 .grid { display: grid; }
                 .grid-cols-2 { grid-template-columns: 1fr 1fr; }
                 .gap-6 { gap: 1.5rem; }
+                .spinner-xs {
+                    width: 14px;
+                    height: 14px;
+                    border: 2px solid rgba(255,255,255,0.1);
+                    border-top-color: var(--accent-primary);
+                    border-radius: 50%;
+                    animation: spin 0.8s linear infinite;
+                }
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+                .border-red-500 {
+                    border-color: #f87171 !important;
+                }
             `}</style>
         </div>
     );

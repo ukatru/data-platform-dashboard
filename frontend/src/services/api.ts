@@ -111,6 +111,7 @@ export const api = {
         updateParams: (id: number, params: any) => apiInstance.put(`${API_BASE}/pipelines/${id}/params`, params),
         getSchema: (id: number) => apiInstance.get(`${API_BASE}/pipelines/${id}/schema`),
         listBlueprints: () => apiInstance.get(`${API_BASE}/pipelines/blueprints`),
+        validateId: (instanceId: string) => apiInstance.get(`${API_BASE}/pipelines/validate-id/${instanceId}`),
     },
 
     // Status

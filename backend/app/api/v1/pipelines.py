@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+import sqlalchemy as sa
 from typing import List, Dict, Any
 from datetime import datetime
 import sys
@@ -565,3 +566,29 @@ def get_pipeline_schema(
         )
     
     raise HTTPException(status_code=404, detail="Schema not found for this pipeline")
+
+@router.get("/validate-id/{instance_id}")
+def validate_instance_id_uniqueness(
+    instance_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.ETLUser = Depends(auth.require_analyst)
+):
+    """Check if an instance_id/job_nm already exists to prevent collisions"""
+    # Case-insensitive, trimmed check to prevent collisions
+    instance_id_clean = instance_id.strip().lower()
+    
+    # Check static definitions
+    exists_static = db.query(models.ETLJobDefinition).filter(
+        sa.func.lower(sa.func.trim(models.ETLJobDefinition.job_nm)) == instance_id_clean
+    ).first()
+    if exists_static:
+        return {"available": False, "reason": "Existing static pipeline name"}
+    
+    # Check instances
+    exists_inst = db.query(models.ETLJobInstance).filter(
+        sa.func.lower(sa.func.trim(models.ETLJobInstance.instance_id)) == instance_id_clean
+    ).first()
+    if exists_inst:
+        return {"available": False, "reason": "Existing instance ID"}
+    
+    return {"available": True}

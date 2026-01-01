@@ -4,6 +4,7 @@ import { DynamicTable } from '../../components/DynamicTable';
 import { Plus, Search, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSearchParams } from 'react-router-dom';
+import { ResourceDeleteModal } from '../../components/ResourceDeleteModal';
 
 export const PipelineList: React.FC = () => {
     const { currentTeamId } = useAuth();
@@ -31,6 +32,9 @@ export const PipelineList: React.FC = () => {
         cron: '',
     });
 
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [pipelineToDelete, setPipelineToDelete] = useState<any>(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -133,13 +137,23 @@ export const PipelineList: React.FC = () => {
         }
     };
 
-    const handleDelete = async (row: any) => {
-        if (!confirm(`Delete pipeline "${row.job_nm}"? This will also delete associated parameters. This cannot be undone.`)) return;
+    const handleDelete = (pipeline: any) => {
+        setPipelineToDelete(pipeline);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!pipelineToDelete) return;
+        setDeleteLoading(true);
         try {
-            await api.pipelines.delete(row.id);
+            await api.pipelines.delete(pipelineToDelete.id);
+            setIsDeleteModalOpen(false);
+            setPipelineToDelete(null);
             fetchPipelines();
         } catch (err: any) {
             alert(`Failed to delete: ${err.response?.data?.detail || err.message}`);
+        } finally {
+            setDeleteLoading(false);
         }
     };
 
@@ -398,6 +412,16 @@ export const PipelineList: React.FC = () => {
                     </div>
                 </div >
             )}
+
+            <ResourceDeleteModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                resourceName={pipelineToDelete?.instance_id || pipelineToDelete?.job_nm || ''}
+                resourceType="pipeline"
+                description={`This will permanently delete the pipeline "${pipelineToDelete?.job_nm}" (Instance: ${pipelineToDelete?.instance_id}) and all associated parameter configurations. This action cannot be reversed.`}
+                loading={deleteLoading}
+            />
         </div >
     );
 };
