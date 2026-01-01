@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, ChevronRight, ChevronLeft, Rocket, Check, AlertCircle, Info, Layout, Settings, Activity, Calendar, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GenericSchemaForm } from './GenericSchemaForm';
@@ -28,13 +28,59 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
     const [scheduleTime, setScheduleTime] = useState('02:00');
     const [scheduleDay, setScheduleDay] = useState('1'); // Monday for weekly, 1st for monthly
 
+    // Teams State
+    const [teams, setTeams] = useState<any[]>([]);
+    const [teamsLoading, setTeamsLoading] = useState(true);
+
     // Form State
     const [formData, setFormData] = useState({
         instance_id: '',
-        team_id: blueprint.team_id || currentTeamId || (user?.team_memberships?.[0]?.team_id) || 0,
+        team_id: 0,
         description: '',
         config: {},
     });
+
+    const isOrgAdmin = user?.permissions?.includes('PLATFORM_ADMIN');
+
+    useEffect(() => {
+        const loadTeams = async () => {
+            setTeamsLoading(true);
+            try {
+                let availableTeams = [];
+                if (isOrgAdmin) {
+                    const res = await api.management.listTeams();
+                    availableTeams = res.data;
+                } else {
+                    // Regular users: Only show teams where they are NOT a Viewer
+                    availableTeams = (user?.team_memberships || [])
+                        .filter(tm => tm.role.role_nm !== 'Viewer')
+                        .map(tm => ({
+                            id: tm.team_id,
+                            team_nm: tm.team.team_nm,
+                            role_nm: tm.role.role_nm
+                        }));
+                }
+                setTeams(availableTeams);
+
+                // Initial team selection
+                if (availableTeams.length > 0) {
+                    const initialTeamId = blueprint.team_id || currentTeamId || availableTeams[0].id;
+                    const hasSelected = availableTeams.some((t: any) => t.id === initialTeamId);
+                    setFormData(prev => ({
+                        ...prev,
+                        team_id: hasSelected ? initialTeamId : availableTeams[0].id
+                    }));
+                }
+            } catch (err) {
+                console.error("Failed to load teams", err);
+                setError("Failed to load available teams. Please refresh.");
+            } finally {
+                setTeamsLoading(false);
+            }
+        };
+
+        loadTeams();
+    }, [user, isOrgAdmin, currentTeamId, blueprint.team_id]);
 
     const steps: { key: WizardStep; label: string; icon: any }[] = [
         { key: 'identity', label: 'Identity', icon: Layout },
@@ -61,6 +107,10 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
         if (step === 'identity') {
             if (!formData.instance_id) {
                 setError("Instance ID is required.");
+                return;
+            }
+            if (!formData.team_id) {
+                setError("Please select an owning team.");
                 return;
             }
             setStep('config');
@@ -104,8 +154,6 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
             setLoading(false);
         }
     };
-
-    const userTeams = user?.team_memberships || [];
 
     return (
         <div className="modal-overlay" onClick={onClose}>
@@ -238,14 +286,23 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
                                             className="nexus-select"
                                             value={formData.team_id}
                                             onChange={(e) => setFormData({ ...formData, team_id: parseInt(e.target.value) })}
+                                            disabled={teamsLoading}
                                         >
-                                            {userTeams.map(tm => (
-                                                <option key={tm.team_id} value={tm.team_id}>
-                                                    {tm.team.team_nm} ({tm.role.role_nm})
-                                                </option>
-                                            ))}
+                                            {teamsLoading ? (
+                                                <option value={0}>Loading teams...</option>
+                                            ) : teams.length === 0 ? (
+                                                <option value={0}>No eligible teams found</option>
+                                            ) : (
+                                                teams.map(t => (
+                                                    <option key={t.id} value={t.id}>
+                                                        {t.team_nm} {t.role_nm ? `(${t.role_nm})` : ''}
+                                                    </option>
+                                                ))
+                                            )}
                                         </select>
-                                        <p className="field-hint">Which team owns this deployment?</p>
+                                        <p className="field-hint">
+                                            {isOrgAdmin ? 'Select an owner team for this deployment.' : 'Only teams where you have Editor/Admin access are shown.'}
+                                        </p>
                                     </div>
                                 </div>
 
@@ -395,7 +452,7 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
                                     <div className="glass" style={{ padding: '1rem' }}>
                                         <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Identity</div>
                                         <div style={{ fontWeight: 600 }}>{formData.instance_id}</div>
-                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Owned by {userTeams.find(t => t.team_id === formData.team_id)?.team.team_nm || 'Unknown'}</div>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Owned by {teams.find(t => t.id === formData.team_id)?.team_nm || 'Unknown'}</div>
                                     </div>
                                     <div className="glass" style={{ padding: '1rem' }}>
                                         <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Schedule Strategy</div>
