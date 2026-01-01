@@ -55,7 +55,7 @@ def list_pipelines(
     .join(models.ETLTeam, models.ETLJobInstance.team_id == models.ETLTeam.id)\
     .join(models.ETLOrg, models.ETLJobInstance.org_id == models.ETLOrg.id)\
     .outerjoin(models.ETLSchedule, models.ETLJobInstance.schedule_id == models.ETLSchedule.id)\
-    .outerjoin(models.ETLCodeLocation, models.ETLJobInstance.code_location_id == models.ETLCodeLocation.id)
+    .outerjoin(models.ETLCodeLocation, models.ETLBlueprint.code_location_id == models.ETLCodeLocation.id)
 
     if tenant_ctx.org_id is not None:
         instance_query = instance_query.filter(models.ETLJobInstance.org_id == tenant_ctx.org_id)
@@ -134,15 +134,26 @@ def list_blueprints(
     current_user: models.ETLUser = Depends(auth.require_analyst)
 ):
     """List all registered blueprints (logic templates) for the current organization"""
+    from sqlalchemy import func
+    
+    # Query blueprints and count linked instances
     query = db.query(
         models.ETLBlueprint,
         models.ETLTeam.team_nm,
         models.ETLOrg.org_code,
-        models.ETLCodeLocation.repo_url
+        models.ETLCodeLocation.repo_url,
+        func.count(models.ETLJobInstance.id).label("instance_count")
     )\
     .join(models.ETLTeam, models.ETLBlueprint.team_id == models.ETLTeam.id)\
     .join(models.ETLOrg, models.ETLBlueprint.org_id == models.ETLOrg.id)\
-    .outerjoin(models.ETLCodeLocation, models.ETLBlueprint.code_location_id == models.ETLCodeLocation.id)
+    .outerjoin(models.ETLCodeLocation, models.ETLBlueprint.code_location_id == models.ETLCodeLocation.id)\
+    .outerjoin(models.ETLJobInstance, models.ETLBlueprint.id == models.ETLJobInstance.blueprint_id)\
+    .group_by(
+        models.ETLBlueprint.id, 
+        models.ETLTeam.team_nm, 
+        models.ETLOrg.org_code, 
+        models.ETLCodeLocation.repo_url
+    )
     
     if tenant_ctx.org_id is not None:
         query = query.filter(models.ETLBlueprint.org_id == tenant_ctx.org_id)
@@ -151,10 +162,11 @@ def list_blueprints(
         
     results = query.all()
     blueprints = []
-    for b, team_nm, org_code, repo_url in results:
+    for b, team_nm, org_code, repo_url, count in results:
         b.team_nm = team_nm
         b.org_code = org_code
         b.repo_url = repo_url
+        b.instance_count = count
         blueprints.append(b)
     return blueprints
     

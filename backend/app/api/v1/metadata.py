@@ -71,7 +71,17 @@ BLUEPRINT_COLUMNS = [
     schemas.ColumnMetadata(name="blueprint_nm", label="Blueprint Name", data_type="string", visible=True, sortable=True, render_hint="link", width="250px"),
     schemas.ColumnMetadata(name="description", label="Description", data_type="string", visible=True, sortable=True, width="300px"),
     schemas.ColumnMetadata(name="team_nm", label="Team", data_type="string", visible=True, sortable=True, width="120px"),
-    schemas.ColumnMetadata(name="repo_url", label="Location", data_type="string", visible=True, sortable=True, width="300px"),
+    schemas.ColumnMetadata(name="instance_count", label="Usage", data_type="integer", visible=True, sortable=True, width="100px"),
+    schemas.ColumnMetadata(name="repo_url", label="Location", data_type="string", visible=True, sortable=True, render_hint="external_link", width="300px"),
+    schemas.ColumnMetadata(name="creat_dttm", label="Created", data_type="datetime", visible=True, sortable=True, render_hint="datetime", width="150px"),
+]
+
+REPOSITORY_COLUMNS = [
+    schemas.ColumnMetadata(name="id", label="ID", data_type="integer", visible=False, sortable=True),
+    schemas.ColumnMetadata(name="location_nm", label="Location Name", data_type="string", visible=True, sortable=True, width="250px"),
+    schemas.ColumnMetadata(name="repo_url", label="Repository URL", data_type="string", visible=True, sortable=True, render_hint="external_link", width="400px"),
+    schemas.ColumnMetadata(name="team_nm", label="Team", data_type="string", visible=True, sortable=True, width="120px"),
+    schemas.ColumnMetadata(name="org_code", label="Org", data_type="string", visible=False, sortable=True, width="80px"),
     schemas.ColumnMetadata(name="creat_dttm", label="Created", data_type="datetime", visible=True, sortable=True, render_hint="datetime", width="150px"),
 ]
 

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { api, TableMetadata } from '../../services/api';
 import { DynamicTable } from '../../components/DynamicTable';
-import { Search, Puzzle, Rocket, Info } from 'lucide-react';
+import { Search, Puzzle, Rocket, Info, Workflow } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { RoleGuard } from '../../components/RoleGuard';
 
@@ -124,16 +125,44 @@ export const BlueprintList: React.FC = () => {
                                 }}>
                                     <Puzzle size={24} />
                                 </div>
-                                <span style={{
-                                    fontSize: '0.7rem',
-                                    background: 'rgba(255,255,255,0.05)',
-                                    padding: '0.25rem 0.5rem',
-                                    borderRadius: '100px',
-                                    color: 'var(--text-tertiary)',
-                                    fontWeight: 600
-                                }}>
-                                    {b.team_nm}
-                                </span>
+                                <div className="flex flex-col items-end gap-2">
+                                    <span style={{
+                                        fontSize: '0.7rem',
+                                        background: 'rgba(255,255,255,0.05)',
+                                        padding: '0.25rem 0.6rem',
+                                        borderRadius: '100px',
+                                        color: 'var(--text-tertiary)',
+                                        fontWeight: 600,
+                                        border: '1px solid rgba(255,255,255,0.1)'
+                                    }}>
+                                        {b.team_nm}
+                                    </span>
+                                    <Link
+                                        to={`/pipelines?blueprint=${b.blueprint_nm}`}
+                                        style={{
+                                            fontSize: '0.7rem',
+                                            padding: '0.25rem 0.6rem',
+                                            borderRadius: '6px',
+                                            fontWeight: 600,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            textDecoration: 'none',
+                                            transition: 'all 0.2s',
+                                            cursor: b.instance_count > 0 ? 'pointer' : 'default',
+                                            pointerEvents: b.instance_count > 0 ? 'auto' : 'none',
+                                            // Conditional styling
+                                            background: b.instance_count > 0 ? 'rgba(79, 70, 229, 0.15)' : 'rgba(255,255,255,0.05)',
+                                            color: b.instance_count > 0 ? '#a5b4fc' : 'var(--text-tertiary)',
+                                            border: b.instance_count > 0 ? '1px solid rgba(79, 70, 229, 0.3)' : '1px solid rgba(255,255,255,0.1)',
+                                        }}
+                                        className={b.instance_count > 0 ? "hover:bg-indigo-500/20 hover:border-indigo-500/50" : ""}
+                                        title={b.instance_count > 0 ? `Click to see all ${b.instance_count} instances.` : "No instances yet."}
+                                    >
+                                        <Workflow size={12} />
+                                        {b.instance_count} {b.instance_count === 1 ? 'Instance' : 'Instances'}
+                                    </Link>
+                                </div>
                             </div>
 
                             <div>

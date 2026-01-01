@@ -3,13 +3,17 @@ import { api, TableMetadata } from '../../services/api';
 import { DynamicTable } from '../../components/DynamicTable';
 import { Plus, Search, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSearchParams } from 'react-router-dom';
 
 export const PipelineList: React.FC = () => {
     const { currentTeamId } = useAuth();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const blueprintFilter = searchParams.get('blueprint');
+
     const [metadata, setMetadata] = useState<TableMetadata | null>(null);
     const [pipelines, setPipelines] = useState<any[]>([]);
     const [schedules, setSchedules] = useState<any[]>([]);
-    const [search, setSearch] = useState('');
+    const [search, setSearch] = useState(blueprintFilter || '');
     const [showModal, setShowModal] = useState(false);
     const [editingPipeline, setEditingPipeline] = useState<any>(null);
     const [formData, setFormData] = useState({
@@ -174,7 +178,12 @@ export const PipelineList: React.FC = () => {
                     type="text"
                     placeholder="Search pipelines..."
                     value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+                    onChange={(e) => {
+                        setSearch(e.target.value);
+                        if (blueprintFilter) {
+                            setSearchParams({}); // Clear filter when user types
+                        }
+                    }}
                     style={{ background: 'transparent', border: 'none', outline: 'none', width: '100%' }}
                 />
             </div>

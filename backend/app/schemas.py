@@ -188,6 +188,7 @@ class BlueprintBase(ModelBase):
     code_location_id: Optional[int] = None
     org_id: Optional[int] = None
     team_id: Optional[int] = None
+    instance_count: int = 0
 
 class BlueprintCreate(BlueprintBase):
     pass
