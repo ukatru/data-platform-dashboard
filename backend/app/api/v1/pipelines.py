@@ -414,14 +414,24 @@ def get_pipeline_params(
 ):
     """Get parameters (checks instance first, then static override)"""
     # 1. Instance
-    params = db.query(models.ETLInstanceParameter).filter(models.ETLInstanceParameter.instance_pk == job_id).first()
-    if params:
+    inst = db.query(models.ETLJobInstance).filter(models.ETLJobInstance.id == job_id).first()
+    if inst:
+        params = db.query(models.ETLInstanceParameter).filter(models.ETLInstanceParameter.instance_pk == job_id).first()
+        if params:
+            return schemas.JobParameter(
+                id=params.id,
+                etl_job_id=job_id,
+                config_json=params.config_json,
+                creat_by_nm=params.creat_by_nm,
+                creat_dttm=params.creat_dttm
+            )
+        # Handle instance without params record gracefully
         return schemas.JobParameter(
-            id=params.id,
+            id=0,
             etl_job_id=job_id,
-            config_json=params.config_json,
-            creat_by_nm=params.creat_by_nm,
-            creat_dttm=params.creat_dttm
+            config_json={},
+            creat_by_nm="SYSTEM",
+            creat_dttm=inst.creat_dttm
         )
     
     # 2. Static override
@@ -439,8 +449,16 @@ def get_pipeline_params(
                 creat_by_nm=s_params.creat_by_nm,
                 creat_dttm=s_params.creat_dttm
             )
+        # Handle static without override record gracefully
+        return schemas.JobParameter(
+            id=0,
+            etl_job_id=job_id,
+            config_json={},
+            creat_by_nm="SYSTEM",
+            creat_dttm=job_def.creat_dttm
+        )
 
-    raise HTTPException(status_code=404, detail="Parameters not found for this pipeline")
+    raise HTTPException(status_code=404, detail="Pipeline not found")
 
 @router.put("/{job_id}/params", response_model=schemas.JobParameter)
 def update_pipeline_params(
