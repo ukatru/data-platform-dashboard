@@ -56,8 +56,9 @@ const CustomCheckboxWidget = (props: WidgetProps) => {
 
 // --- Custom Field Template for Layout ---
 
-const CustomFieldTemplate = (props: FieldTemplateProps) => {
-    const { id, classNames, label, help, required, description, errors, children, schema } = props;
+const CustomFieldTemplate = (props: FieldTemplateProps & { formContext?: any }) => {
+    const { id, classNames, label, help, required, description, errors, children, schema, formContext } = props;
+    const isCompact = formContext?.layout === 'compact';
 
     // Hide fieldsets for objects to keep it flat and clean
     if (schema.type === 'object' && !label) {
@@ -68,14 +69,14 @@ const CustomFieldTemplate = (props: FieldTemplateProps) => {
         <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`${classNames} nexus-field-container`}
-            style={{ marginBottom: '1.5rem' }}
+            className={`${classNames} nexus-field-container ${isCompact ? 'compact' : ''}`}
+            style={{ marginBottom: isCompact ? '0.75rem' : '1.5rem' }}
         >
             {label && (
                 <label htmlFor={id} style={{
                     display: 'block',
-                    marginBottom: '0.5rem',
-                    fontSize: '0.85rem',
+                    marginBottom: isCompact ? '0.25rem' : '0.5rem',
+                    fontSize: isCompact ? '0.75rem' : '0.85rem',
                     fontWeight: 600,
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
@@ -85,7 +86,7 @@ const CustomFieldTemplate = (props: FieldTemplateProps) => {
                 </label>
             )}
             {description && (
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginBottom: '0.75rem' }}>
+                <div style={{ fontSize: isCompact ? '0.7rem' : '0.8rem', color: 'var(--text-tertiary)', marginBottom: isCompact ? '0.5rem' : '0.75rem' }}>
                     {description}
                 </div>
             )}
@@ -104,6 +105,7 @@ interface GenericSchemaFormProps {
     children?: React.ReactNode;
     customActions?: (formData: any) => React.ReactNode;
     readOnly?: boolean;
+    layout?: 'default' | 'compact';
 }
 
 const customWidgets = {
@@ -122,7 +124,8 @@ export const GenericSchemaForm: React.FC<GenericSchemaFormProps> = ({
     onChange,
     children,
     customActions,
-    readOnly = false
+    readOnly = false,
+    layout = 'default'
 }) => {
     const [localFormData, setLocalFormData] = React.useState(initialFormData);
 
@@ -136,13 +139,14 @@ export const GenericSchemaForm: React.FC<GenericSchemaFormProps> = ({
     };
 
     return (
-        <div className="dynamic-form nexus-theme">
+        <div className={`dynamic-form nexus-theme ${layout === 'compact' ? 'compact' : ''}`}>
             <Form
                 schema={schema}
                 formData={localFormData}
                 validator={validator}
                 widgets={customWidgets}
                 templates={{ FieldTemplate: CustomFieldTemplate }}
+                formContext={{ layout }}
                 onSubmit={({ formData }) => onSubmit(formData)}
                 onChange={({ formData }) => handleChange(formData)}
                 readonly={readOnly}
@@ -199,6 +203,10 @@ export const GenericSchemaForm: React.FC<GenericSchemaFormProps> = ({
                     border-radius: 12px;
                     border: 1px solid transparent;
                     transition: all 0.2s ease;
+                }
+
+                .nexus-theme .nexus-field-container.compact {
+                    padding: 0.85rem 1rem;
                 }
 
                 .nexus-theme .nexus-field-container:hover {

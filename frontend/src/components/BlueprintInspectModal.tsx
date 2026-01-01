@@ -246,12 +246,12 @@ export const BlueprintInspectModal: React.FC<BlueprintInspectModalProps> = ({
                     left: 0;
                     right: 0;
                     bottom: 0;
-                    background: rgba(0, 0, 0, 0.7);
-                    backdrop-filter: blur(8px);
+                    background: rgba(0, 0, 0, 0.8);
+                    backdrop-filter: blur(12px);
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    z-index: 1000;
+                    z-index: 9999;
                     padding: 2rem;
                 }
             `}</style>

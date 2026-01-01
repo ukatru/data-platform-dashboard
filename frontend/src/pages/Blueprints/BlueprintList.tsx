@@ -6,8 +6,11 @@ import { Search, Puzzle, Rocket, Info, Workflow } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { RoleGuard } from '../../components/RoleGuard';
 import { BlueprintInspectModal } from '../../components/BlueprintInspectModal';
+import { ProvisioningWizard } from '../../components/ProvisioningWizard';
+import { useNavigate } from 'react-router-dom';
 
 export const BlueprintList: React.FC = () => {
+    const navigate = useNavigate();
     const { currentTeamId } = useAuth();
     const [metadata, setMetadata] = useState<TableMetadata | null>(null);
     const [blueprints, setBlueprints] = useState<any[]>([]);
@@ -15,6 +18,7 @@ export const BlueprintList: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
     const [selectedBlueprint, setSelectedBlueprint] = useState<any>(null);
+    const [wizardBlueprint, setWizardBlueprint] = useState<any>(null);
 
     useEffect(() => {
         const fetchMetadata = async () => {
@@ -49,7 +53,13 @@ export const BlueprintList: React.FC = () => {
 
     const handleInstantiate = (blueprint: any) => {
         setSelectedBlueprint(null);
-        alert(`Instantiating ${blueprint.blueprint_nm}... This will open the Phase 6 Creation Modal soon!`);
+        setWizardBlueprint(blueprint);
+    };
+
+    const handleProvisionSuccess = (instId: number) => {
+        setWizardBlueprint(null);
+        // Navigate to the new pipeline details
+        navigate(`/pipelines/${instId}`);
     };
 
     if (error) {
@@ -223,6 +233,15 @@ export const BlueprintList: React.FC = () => {
                     blueprint={selectedBlueprint}
                     onClose={() => setSelectedBlueprint(null)}
                     onUse={handleInstantiate}
+                />
+            )}
+
+            {/* Provisioning Wizard */}
+            {wizardBlueprint && (
+                <ProvisioningWizard
+                    blueprint={wizardBlueprint}
+                    onClose={() => setWizardBlueprint(null)}
+                    onSuccess={handleProvisionSuccess}
                 />
             )}
         </div>
