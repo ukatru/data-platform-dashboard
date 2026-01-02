@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { GenericSchemaForm } from './GenericSchemaForm';
 import { useAuth } from '../contexts/AuthContext';
-import { Wand2, Code2, Save, Info } from 'lucide-react';
+import { Info } from 'lucide-react';
 
 
 interface DynamicFormRendererProps {
@@ -26,7 +26,6 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     const [formData, setFormData] = useState<any>({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [viewMode, setViewMode] = useState<'visual' | 'code'>('visual');
 
     useEffect(() => {
         const fetchSchemaAndParams = async () => {
@@ -76,112 +75,20 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
                 marginBottom: '2.5rem',
                 gap: '1rem'
             }}>
-                <div className="pill-toggle-container">
-                    <button
-                        onClick={() => setViewMode('visual')}
-                        className={`pill-btn ${viewMode === 'visual' ? 'active' : ''}`}
-                    >
-                        <Wand2 size={14} /> Visual
-                    </button>
-                    <button
-                        onClick={() => setViewMode('code')}
-                        className={`pill-btn ${viewMode === 'code' ? 'active' : ''}`}
-                    >
-                        <Code2 size={14} /> Code
-                    </button>
-                </div>
-
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     <Info size={14} style={{ opacity: 0.5 }} />
-                    {viewMode === 'visual' ? 'Guided UI Designer' : 'Direct source editor'}
+                    Guided Configuration Designer
                 </div>
             </div>
 
-            {viewMode === 'visual' ? (
-                <div key="visual">
-                    <GenericSchemaForm
-                        schema={schema}
-                        formData={formData}
-                        onSubmit={handleSubmit}
-                        onChange={(data: any) => setFormData(data)}
-                        readOnly={readOnly || !canEdit}
-                    />
-                </div>
-            ) : (
-                <div key="code">
-                    <div style={{ position: 'relative' }}>
-                        <textarea
-                            className="terminal"
-                            style={{
-                                width: '100%',
-                                height: '500px',
-                                resize: 'none',
-                                padding: '1.5rem',
-                                outline: 'none',
-                                border: '1px solid var(--glass-border)',
-                                fontSize: '0.9rem',
-                                background: 'rgba(0,0,0,0.4)',
-                                color: '#a5b4fc',
-                                borderRadius: 'var(--radius-md)',
-                                fontFamily: 'monospace'
-                            }}
-                            value={JSON.stringify(formData, null, 4)}
-                            readOnly={readOnly || !canEdit}
-                            onChange={(e) => {
-                                try {
-                                    const parsed = JSON.parse(e.target.value);
-                                    setFormData(parsed);
-                                } catch (err) { }
-                            }}
-                        />
-                        {!readOnly && canEdit && (
-                            <button
-                                onClick={() => handleSubmit(formData)}
-                                className="btn-primary"
-                                style={{
-                                    position: 'absolute',
-                                    bottom: '1.5rem',
-                                    right: '1.5rem',
-                                    padding: '0.6rem 1.25rem'
-                                }}
-                            >
-                                <Save size={16} /> Save Changes
-                            </button>
-                        )}
-                    </div>
-                </div>
-            )}
+            <GenericSchemaForm
+                schema={schema}
+                formData={formData}
+                onSubmit={handleSubmit}
+                onChange={(data: any) => setFormData(data)}
+                readOnly={readOnly || !canEdit}
+            />
 
-            <style>{`
-                .pill-toggle-container {
-                    display: flex;
-                    background: rgba(255,255,255,0.03);
-                    padding: 4px;
-                    border-radius: 10px;
-                    border: 1px solid var(--glass-border);
-                    gap: 2px;
-                }
-                .pill-btn {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    padding: 6px 16px;
-                    border-radius: 7px;
-                    font-size: 0.8rem;
-                    font-weight: 600;
-                    color: var(--text-secondary);
-                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-                }
-                .pill-btn:hover:not(.active) {
-                    background: rgba(255,255,255,0.05);
-                    color: var(--text-primary);
-                }
-                .pill-btn.active {
-                    background: var(--accent-primary);
-                    color: white;
-                    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-                }
-            `}</style>
         </div>
     );
 };
