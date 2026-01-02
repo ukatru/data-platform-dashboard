@@ -68,7 +68,7 @@ SCHEMA_COLUMNS = [
 
 BLUEPRINT_COLUMNS = [
     schemas.ColumnMetadata(name="id", label="ID", data_type="integer", visible=False, sortable=True),
-    schemas.ColumnMetadata(name="blueprint_nm", label="Blueprint Name", data_type="string", visible=True, sortable=True, render_hint="link", width="250px"),
+    schemas.ColumnMetadata(name="job_nm", label="Blueprint Name", data_type="string", visible=True, sortable=True, render_hint="link", width="250px"),
     schemas.ColumnMetadata(name="description", label="Description", data_type="string", visible=True, sortable=True, width="300px"),
     schemas.ColumnMetadata(name="team_nm", label="Team", data_type="string", visible=True, sortable=True, width="120px"),
     schemas.ColumnMetadata(name="instance_count", label="Usage", data_type="integer", visible=True, sortable=True, width="100px"),

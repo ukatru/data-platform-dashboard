@@ -29,7 +29,7 @@ def list_pipelines(
 ):
     """List all pipelines (Static Definitions + Blueprint Instances) for the current organization"""
     
-    # 1. Fetch Static Definitions
+    # 1. Fetch Static Definitions (blueprint_ind = False)
     static_query = db.query(
         models.ETLJobDefinition,
         models.ETLTeam.team_nm,
@@ -38,7 +38,8 @@ def list_pipelines(
     )\
     .join(models.ETLTeam, models.ETLJobDefinition.team_id == models.ETLTeam.id)\
     .join(models.ETLOrg, models.ETLJobDefinition.org_id == models.ETLOrg.id)\
-    .outerjoin(models.ETLCodeLocation, models.ETLJobDefinition.code_location_id == models.ETLCodeLocation.id)
+    .outerjoin(models.ETLCodeLocation, models.ETLJobDefinition.code_location_id == models.ETLCodeLocation.id)\
+    .filter(models.ETLJobDefinition.blueprint_ind == False)
     
     if tenant_ctx.org_id is not None:
         static_query = static_query.filter(models.ETLJobDefinition.org_id == tenant_ctx.org_id)
@@ -50,34 +51,32 @@ def list_pipelines(
     # 2. Fetch Instances (Invocations)
     instance_query = db.query(
         models.ETLJobInstance,
-        models.ETLBlueprint.blueprint_nm,
+        models.ETLJobDefinition.job_nm,
         models.ETLTeam.team_nm,
         models.ETLOrg.org_code,
         models.ETLSchedule.slug,
         models.ETLSchedule.cron,
         models.ETLCodeLocation.repo_url
     )\
-    .join(models.ETLBlueprint, models.ETLJobInstance.blueprint_id == models.ETLBlueprint.id)\
+    .join(models.ETLJobDefinition, models.ETLJobInstance.job_definition_id == models.ETLJobDefinition.id)\
     .join(models.ETLTeam, models.ETLJobInstance.team_id == models.ETLTeam.id)\
     .join(models.ETLOrg, models.ETLJobInstance.org_id == models.ETLOrg.id)\
     .outerjoin(models.ETLSchedule, models.ETLJobInstance.schedule_id == models.ETLSchedule.id)\
-    .outerjoin(models.ETLCodeLocation, models.ETLBlueprint.code_location_id == models.ETLCodeLocation.id)
+    .outerjoin(models.ETLCodeLocation, models.ETLJobDefinition.code_location_id == models.ETLCodeLocation.id)
 
     if tenant_ctx.org_id is not None:
         instance_query = instance_query.filter(models.ETLJobInstance.org_id == tenant_ctx.org_id)
     if tenant_ctx.team_id:
         instance_query = instance_query.filter(models.ETLJobInstance.team_id == tenant_ctx.team_id)
     if search:
-        # Note: Instance job_nm is inherited from blueprint name via join
-        instance_query = instance_query.filter(models.ETLBlueprint.blueprint_nm.ilike(f"%{search}%"))
+        instance_query = instance_query.filter(models.ETLJobDefinition.job_nm.ilike(f"%{search}%"))
 
     jobs = []
     
     # Process Static Jobs (Identified by STATIC instance_id)
     for job_def, team_nm, org_code, repo_url in static_query.all():
         params_override = db.query(models.ETLJobParameter).filter(
-            models.ETLJobParameter.job_nm == job_def.job_nm,
-            models.ETLJobParameter.team_id == job_def.team_id
+            models.ETLJobParameter.job_definition_id == job_def.id
         ).first()
         
         cron = params_override.cron_schedule if params_override else None
@@ -147,7 +146,7 @@ def list_pipelines(
         "offset": offset
     }
 
-@router.get("/blueprints", response_model=schemas.PaginatedResponse[schemas.Blueprint])
+@router.get("/blueprints", response_model=schemas.PaginatedResponse[schemas.Definition])
 def list_blueprints(
     search: Optional[str] = None,
     limit: int = 100,
@@ -159,34 +158,35 @@ def list_blueprints(
     """List all registered blueprints (logic templates) for the current organization"""
     from sqlalchemy import func
     
-    # Query blueprints and count linked instances
+    # Query unified definitions where blueprint_ind = True
     query = db.query(
-        models.ETLBlueprint,
+        models.ETLJobDefinition,
         models.ETLTeam.team_nm,
         models.ETLOrg.org_code,
         models.ETLCodeLocation.repo_url,
         func.count(models.ETLJobInstance.id).label("instance_count")
     )\
-    .join(models.ETLTeam, models.ETLBlueprint.team_id == models.ETLTeam.id)\
-    .join(models.ETLOrg, models.ETLBlueprint.org_id == models.ETLOrg.id)\
-    .outerjoin(models.ETLCodeLocation, models.ETLBlueprint.code_location_id == models.ETLCodeLocation.id)\
-    .outerjoin(models.ETLJobInstance, models.ETLBlueprint.id == models.ETLJobInstance.blueprint_id)\
+    .join(models.ETLTeam, models.ETLJobDefinition.team_id == models.ETLTeam.id)\
+    .join(models.ETLOrg, models.ETLJobDefinition.org_id == models.ETLOrg.id)\
+    .outerjoin(models.ETLCodeLocation, models.ETLJobDefinition.code_location_id == models.ETLCodeLocation.id)\
+    .outerjoin(models.ETLJobInstance, models.ETLJobDefinition.id == models.ETLJobInstance.job_definition_id)\
+    .filter(models.ETLJobDefinition.blueprint_ind == True)\
     .group_by(
-        models.ETLBlueprint.id, 
+        models.ETLJobDefinition.id, 
         models.ETLTeam.team_nm, 
         models.ETLOrg.org_code, 
         models.ETLCodeLocation.repo_url
     )
     
     if tenant_ctx.org_id is not None:
-        query = query.filter(models.ETLBlueprint.org_id == tenant_ctx.org_id)
+        query = query.filter(models.ETLJobDefinition.org_id == tenant_ctx.org_id)
     if tenant_ctx.team_id:
-        query = query.filter(models.ETLBlueprint.team_id == tenant_ctx.team_id)
+        query = query.filter(models.ETLJobDefinition.team_id == tenant_ctx.team_id)
     if search:
-        query = query.filter(models.ETLBlueprint.blueprint_nm.ilike(f"%{search}%"))
+        query = query.filter(models.ETLJobDefinition.job_nm.ilike(f"%{search}%"))
         
     total_count = query.count()
-    results = query.order_by(models.ETLBlueprint.creat_dttm.desc()).offset(offset).limit(limit).all()
+    results = query.order_by(models.ETLJobDefinition.creat_dttm.desc()).offset(offset).limit(limit).all()
 
     blueprints = []
     for b, team_nm, org_code, repo_url, count in results:
@@ -195,22 +195,11 @@ def list_blueprints(
         b.repo_url = repo_url
         b.instance_count = count
         
-        # 🟢 Fallback for params_schema if empty on the blueprint record
+        # 🟢 Explicit Schema Linking (ID-based, no guessing)
         if not b.params_schema:
-            try:
-                base_nm = b.blueprint_nm.replace('_template', '').replace('_pattern', '').replace('_job', '')
-                ps = db.query(models.ETLParamsSchema).filter(
-                    sa.or_(
-                        models.ETLParamsSchema.job_nm == b.blueprint_nm,
-                        models.ETLParamsSchema.job_nm == base_nm,
-                        models.ETLParamsSchema.job_nm == f"{base_nm}_pattern",
-                        models.ETLParamsSchema.job_nm == f"{base_nm}_template"
-                    )
-                ).first()
-                if ps:
-                    b.params_schema = ps.json_schema
-            except Exception:
-                pass
+            ps = db.query(models.ETLParamsSchema).filter(models.ETLParamsSchema.job_definition_id == b.id).first()
+            if ps:
+                b.params_schema = ps.json_schema
 
         blueprints.append(b)
 
@@ -228,12 +217,25 @@ def create_instance(
     tenant_ctx: auth.TenantContext = Depends(auth.require_permission(auth.Permission.CAN_EDIT_PIPELINES))
 ):
     """
-    Create a new pipeline Instance (Invocation) linked to a Blueprint.
+    Create a new pipeline Instance (Invocation) linked to a Blueprint definition.
     """
-    # 1. Verify Blueprint exists
-    blueprint = db.query(models.ETLBlueprint).filter(models.ETLBlueprint.blueprint_nm == job.job_nm).first()
+    # 1. Verify Definition exists and is a blueprint
+    blueprint = None
+    if job.job_definition_id:
+        blueprint = db.query(models.ETLJobDefinition).filter(
+            models.ETLJobDefinition.id == job.job_definition_id,
+            models.ETLJobDefinition.blueprint_ind == True
+        ).first()
+    
+    # Fallback to name for backward compatibility
     if not blueprint:
-        raise HTTPException(status_code=404, detail=f"Blueprint '{job.job_nm}' not found. Instances must be linked to a valid blueprint.")
+        blueprint = db.query(models.ETLJobDefinition).filter(
+            models.ETLJobDefinition.job_nm == job.job_nm,
+            models.ETLJobDefinition.blueprint_ind == True
+        ).first()
+
+    if not blueprint:
+        raise HTTPException(status_code=404, detail="Blueprint definition not found.")
 
     # 2. Scoped Permission Check
     if not tenant_ctx.has_permission(auth.Permission.CAN_EDIT_PIPELINES, team_id=job.team_id):
@@ -245,7 +247,7 @@ def create_instance(
     # 3. Create Instance
     db_inst = models.ETLJobInstance(
         instance_id=job.instance_id,
-        blueprint_id=blueprint.id,
+        job_definition_id=blueprint.id,
         org_id=tenant_ctx.org_id or job.org_id,
         team_id=job.team_id,
         code_location_id=job.code_location_id or blueprint.code_location_id,
@@ -278,16 +280,18 @@ def get_pipeline(
     current_user: models.ETLUser = Depends(auth.require_analyst)
 ):
     """Get pipeline by ID (searches definitions then instances)"""
-    # 1. Try static definition
-    job_def = db.query(models.ETLJobDefinition).filter(models.ETLJobDefinition.id == job_id).first()
+    # 1. Try static definition (Where blueprint_ind is False)
+    job_def = db.query(models.ETLJobDefinition).filter(
+        models.ETLJobDefinition.id == job_id,
+        models.ETLJobDefinition.blueprint_ind == False
+    ).first()
     if job_def:
         team = db.query(models.ETLTeam).filter(models.ETLTeam.id == job_def.team_id).first()
         org = db.query(models.ETLOrg).filter(models.ETLOrg.id == job_def.org_id).first()
         
         # Check override for schedule
         params_override = db.query(models.ETLJobParameter).filter(
-            models.ETLJobParameter.job_nm == job_def.job_nm,
-            models.ETLJobParameter.team_id == job_def.team_id
+            models.ETLJobParameter.job_definition_id == job_def.id
         ).first()
         
         cron = params_override.cron_schedule if params_override else None
@@ -317,14 +321,14 @@ def get_pipeline(
     # 2. Try instance
     inst_query = db.query(
         models.ETLJobInstance,
-        models.ETLBlueprint.blueprint_nm,
-        models.ETLBlueprint.yaml_content,
+        models.ETLJobDefinition.job_nm,
+        models.ETLJobDefinition.yaml_content,
         models.ETLTeam.team_nm,
         models.ETLOrg.org_code,
         models.ETLSchedule.slug,
         models.ETLSchedule.cron
     )\
-    .join(models.ETLBlueprint, models.ETLJobInstance.blueprint_id == models.ETLBlueprint.id)\
+    .join(models.ETLJobDefinition, models.ETLJobInstance.job_definition_id == models.ETLJobDefinition.id)\
     .join(models.ETLTeam, models.ETLJobInstance.team_id == models.ETLTeam.id)\
     .join(models.ETLOrg, models.ETLJobInstance.org_id == models.ETLOrg.id)\
     .outerjoin(models.ETLSchedule, models.ETLJobInstance.schedule_id == models.ETLSchedule.id)\
@@ -358,15 +362,18 @@ def get_pipeline(
             yaml_content=y_content
         )
 
-    # 3. Try blueprint directly
-    blueprint = db.query(models.ETLBlueprint).filter(models.ETLBlueprint.id == job_id).first()
+    # 3. Try blueprint definition directly
+    blueprint = db.query(models.ETLJobDefinition).filter(
+        models.ETLJobDefinition.id == job_id,
+        models.ETLJobDefinition.blueprint_ind == True
+    ).first()
     if blueprint:
         team = db.query(models.ETLTeam).filter(models.ETLTeam.id == blueprint.team_id).first()
         org = db.query(models.ETLOrg).filter(models.ETLOrg.id == blueprint.org_id).first()
         
         return schemas.Job(
             id=blueprint.id,
-            job_nm=blueprint.blueprint_nm,
+            job_nm=blueprint.job_nm,
             instance_id="TEMPLATE",
             source_type="blueprint",
             org_id=blueprint.org_id,
@@ -404,17 +411,19 @@ def update_pipeline(
         return get_pipeline(db_inst.id, type="instance", db=db)
     
     # 2. Try static definition (only allows certain overrides like schedule)
-    db_def = db.query(models.ETLJobDefinition).filter(models.ETLJobDefinition.id == job_id).first()
+    db_def = db.query(models.ETLJobDefinition).filter(
+        models.ETLJobDefinition.id == job_id,
+        models.ETLJobDefinition.blueprint_ind == False
+    ).first()
     if db_def:
-        # For static, we don't update the definition itself, but the ETLJobParameter override
+        # Link by Definition ID
         db_params = db.query(models.ETLJobParameter).filter(
-            models.ETLJobParameter.job_nm == db_def.job_nm,
-            models.ETLJobParameter.team_id == db_def.team_id
+            models.ETLJobParameter.job_definition_id == db_def.id
         ).first()
         
         if not db_params:
             db_params = models.ETLJobParameter(
-                job_nm=db_def.job_nm,
+                job_definition_id=db_def.id,
                 team_id=db_def.team_id,
                 org_id=db_def.org_id,
                 config_json={},
@@ -426,7 +435,6 @@ def update_pipeline(
             db_params.cron_schedule = job_update.cron_schedule
         if job_update.partition_start_dt is not None:
             db_params.partition_start_dt = job_update.partition_start_dt
-        # Add other static overrides here as needed
         
         db_params.updt_by_nm = tenant_ctx.user.username
         db_params.updt_dttm = datetime.utcnow()
@@ -486,11 +494,13 @@ def get_pipeline_params(
         )
     
     # 2. Static override
-    job_def = db.query(models.ETLJobDefinition).filter(models.ETLJobDefinition.id == job_id).first()
+    job_def = db.query(models.ETLJobDefinition).filter(
+        models.ETLJobDefinition.id == job_id,
+        models.ETLJobDefinition.blueprint_ind == False
+    ).first()
     if job_def:
         s_params = db.query(models.ETLJobParameter).filter(
-            models.ETLJobParameter.job_nm == job_def.job_nm,
-            models.ETLJobParameter.team_id == job_def.team_id
+            models.ETLJobParameter.job_definition_id == job_def.id
         ).first()
         if s_params:
             return schemas.JobParameter(
@@ -519,12 +529,12 @@ def update_pipeline_params(
     tenant_ctx: auth.TenantContext = Depends(auth.require_permission(auth.Permission.CAN_EDIT_PIPELINES))
 ):
     """Update pipeline parameters with validation"""
-    # 1. Find the target and its schema
+    # 1. Find the target instance and its definition schema
     db_inst = db.query(models.ETLJobInstance).filter(models.ETLJobInstance.id == job_id).first()
     if db_inst:
-        blueprint = db.query(models.ETLBlueprint).filter(models.ETLBlueprint.id == db_inst.blueprint_id).first()
-        if blueprint and blueprint.params_schema:
-            validate_params_against_schema(params, blueprint.params_schema)
+        job_def = db.query(models.ETLJobDefinition).filter(models.ETLJobDefinition.id == db_inst.job_definition_id).first()
+        if job_def and job_def.params_schema:
+            validate_params_against_schema(params, job_def.params_schema)
         
         db_params = db.query(models.ETLInstanceParameter).filter(models.ETLInstanceParameter.instance_pk == job_id).first()
         if not db_params:
@@ -535,27 +545,31 @@ def update_pipeline_params(
             db_params.updt_by_nm = tenant_ctx.user.username
             db_params.updt_dttm = datetime.utcnow()
         db.commit()
-        db.refresh(db_params)
+        db_params_id = db_params.id
+        db_params_creat_by = db_params.creat_by_nm
+        db_params_creat_dttm = db_params.creat_dttm
         return schemas.JobParameter(
-            id=db_params.id,
+            id=db_params_id,
             etl_job_id=job_id,
-            config_json=db_params.config_json,
-            creat_by_nm=db_params.creat_by_nm,
-            creat_dttm=db_params.creat_dttm
+            config_json=params,
+            creat_by_nm=db_params_creat_by,
+            creat_dttm=db_params_creat_dttm
         )
 
-    db_def = db.query(models.ETLJobDefinition).filter(models.ETLJobDefinition.id == job_id).first()
+    db_def = db.query(models.ETLJobDefinition).filter(
+        models.ETLJobDefinition.id == job_id,
+        models.ETLJobDefinition.blueprint_ind == False
+    ).first()
     if db_def:
         if db_def.params_schema:
             validate_params_against_schema(params, db_def.params_schema)
         
         db_params = db.query(models.ETLJobParameter).filter(
-            models.ETLJobParameter.job_nm == db_def.job_nm,
-            models.ETLJobParameter.team_id == db_def.team_id
+            models.ETLJobParameter.job_definition_id == db_def.id
         ).first()
         if not db_params:
             db_params = models.ETLJobParameter(
-                job_nm=db_def.job_nm,
+                job_definition_id=db_def.id,
                 team_id=db_def.team_id,
                 org_id=db_def.org_id,
                 config_json=params,
@@ -567,13 +581,15 @@ def update_pipeline_params(
             db_params.updt_by_nm = tenant_ctx.user.username
             db_params.updt_dttm = datetime.utcnow()
         db.commit()
-        db.refresh(db_params)
+        db_params_id = db_params.id
+        db_params_creat_by = db_params.creat_by_nm
+        db_params_creat_dttm = db_params.creat_dttm
         return schemas.JobParameter(
-            id=db_params.id,
+            id=db_params_id,
             etl_job_id=job_id,
-            config_json=db_params.config_json,
-            creat_by_nm=db_params.creat_by_nm,
-            creat_dttm=db_params.creat_dttm
+            config_json=params,
+            creat_by_nm=db_params_creat_by,
+            creat_dttm=db_params_creat_dttm
         )
 
     raise HTTPException(status_code=404, detail="Pipeline not found")
@@ -584,57 +600,29 @@ def get_pipeline_schema(
     db: Session = Depends(get_db),
     current_user: models.ETLUser = Depends(auth.require_analyst)
 ):
-    """Get the JSON Schema (from definition or blueprint with robust fallback)"""
-    # 1. Instance -> Blueprint
-    db_inst = db.query(models.ETLJobInstance).filter(models.ETLJobInstance.id == job_id).first()
-    if db_inst:
-        blueprint = db.query(models.ETLBlueprint).filter(models.ETLBlueprint.id == db_inst.blueprint_id).first()
-        if blueprint:
-            schema = blueprint.params_schema
-            if not schema:
-                # Fallback to etl_params_schema - be robust with naming suffixes
-                base_nm = blueprint.blueprint_nm.replace('_template', '').replace('_pattern', '').replace('_job', '')
-                ps = db.query(models.ETLParamsSchema).filter(
-                    sa.or_(
-                        models.ETLParamsSchema.job_nm == blueprint.blueprint_nm,
-                        models.ETLParamsSchema.job_nm == base_nm,
-                        models.ETLParamsSchema.job_nm == f"{base_nm}_pattern",
-                        models.ETLParamsSchema.job_nm == f"{base_nm}_template"
-                    )
-                ).first()
-                if ps:
-                    schema = ps.json_schema
+    """Get the JSON Schema (linked by ID, NO GUESSING)"""
+    # 1. Resolve Definition ID
+    job_def = db.query(models.ETLJobDefinition).filter(models.ETLJobDefinition.id == job_id).first()
+    if not job_def:
+        inst = db.query(models.ETLJobInstance).filter(models.ETLJobInstance.id == job_id).first()
+        if inst:
+            job_def = db.query(models.ETLJobDefinition).filter(models.ETLJobDefinition.id == inst.job_definition_id).first()
 
-            return schemas.ParamsSchema(
-                id=blueprint.id,
-                job_nm=blueprint.blueprint_nm,
-                json_schema=schema or {},
-                description=f"Blueprint Schema: {blueprint.blueprint_nm}",
-                team_nm="System",
-                org_code="SYS",
-                creat_by_nm=blueprint.creat_by_nm,
-                creat_dttm=blueprint.creat_dttm
-            )
-
-    # 2. Static Definition
-    db_def = db.query(models.ETLJobDefinition).filter(models.ETLJobDefinition.id == job_id).first()
-    if db_def:
-        schema = db_def.params_schema
-        if not schema:
-            # Fallback to etl_params_schema
-            ps = db.query(models.ETLParamsSchema).filter(models.ETLParamsSchema.job_nm == db_def.job_nm).first()
-            if ps:
-                schema = ps.json_schema
+    if job_def:
+        # Search for Schema explicitly linked by ID
+        ps = db.query(models.ETLParamsSchema).filter(models.ETLParamsSchema.job_definition_id == job_def.id).first()
+        schema = ps.json_schema if ps else job_def.params_schema
 
         return schemas.ParamsSchema(
-            id=db_def.id,
-            job_nm=db_def.job_nm,
+            id=job_def.id,
+            job_definition_id=job_def.id,
+            job_nm=job_def.job_nm,
             json_schema=schema or {},
-            description=f"Static Schema: {db_def.job_nm}",
+            description=f"Schema for {job_def.job_nm}",
             team_nm="System",
             org_code="SYS",
-            creat_by_nm=db_def.creat_by_nm,
-            creat_dttm=db_def.creat_dttm
+            creat_by_nm=job_def.creat_by_nm,
+            creat_dttm=job_def.creat_dttm
         )
     
     raise HTTPException(status_code=404, detail="Schema not found for this pipeline")

@@ -166,7 +166,7 @@ export const BlueprintList: React.FC = () => {
                                             {b.team_nm}
                                         </span>
                                         <Link
-                                            to={`/pipelines?blueprint=${b.blueprint_nm}`}
+                                            to={`/pipelines?blueprint=${b.job_nm}`}
                                             style={{
                                                 fontSize: '0.7rem',
                                                 padding: '0.25rem 0.6rem',
@@ -193,7 +193,7 @@ export const BlueprintList: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h3 style={{ fontSize: '1.1rem', marginBottom: '0.5rem', fontWeight: 700 }}>{b.blueprint_nm}</h3>
+                                    <h3 style={{ fontSize: '1.1rem', marginBottom: '0.5rem', fontWeight: 700 }}>{b.job_nm}</h3>
                                     <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5, height: '3rem', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                                         {b.description || 'No description provided for this clinical pattern.'}
                                     </p>
@@ -226,7 +226,7 @@ export const BlueprintList: React.FC = () => {
                         <DynamicTable
                             metadata={metadata.columns}
                             data={filtered}
-                            linkColumn="blueprint_nm"
+                            linkColumn="job_nm"
                             linkPath={() => `#`}
                             primaryKey={metadata.primary_key}
                             emptyMessage="No blueprints found."

@@ -194,7 +194,8 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
         try {
             const instancePayload = {
                 instance_id: formData.instance_id,
-                job_nm: blueprint.blueprint_nm,
+                job_nm: blueprint.job_nm,
+                job_definition_id: blueprint.id,
                 org_id: blueprint.org_id,
                 team_id: formData.team_id,
                 description: formData.description,
@@ -244,7 +245,7 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
                         <div>
                             <h2 style={{ fontSize: '1.35rem', fontWeight: 700 }}>Deploy Pattern</h2>
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                {blueprint.blueprint_nm} &gt; <span style={{ color: 'var(--accent-primary)' }}>Instance Draft</span>
+                                {blueprint.job_nm} &gt; <span style={{ color: 'var(--accent-primary)' }}>Instance Draft</span>
                             </p>
                         </div>
                         <button onClick={onClose} style={{ color: 'var(--text-tertiary)' }} className="hover:text-white transition-colors">
@@ -625,7 +626,7 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                                     <div className="glass" style={{ padding: '1rem' }}>
                                         <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Blueprint</div>
-                                        <div style={{ fontWeight: 600 }}>{blueprint.blueprint_nm}</div>
+                                        <div style={{ fontWeight: 600 }}>{blueprint.job_nm}</div>
                                     </div>
                                     <div className="glass" style={{ padding: '1rem' }}>
                                         <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Identity</div>

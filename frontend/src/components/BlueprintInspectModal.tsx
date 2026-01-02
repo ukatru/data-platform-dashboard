@@ -87,7 +87,7 @@ export const BlueprintInspectModal: React.FC<BlueprintInspectModalProps> = ({
                             gap: '2rem'
                         }}>
                             <div>
-                                <h3 style={{ fontSize: '1.1rem', marginBottom: '0.75rem' }}>{blueprint.blueprint_nm}</h3>
+                                <h3 style={{ fontSize: '1.1rem', marginBottom: '0.75rem' }}>{blueprint.job_nm}</h3>
                                 <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                                     {blueprint.description || 'No description provided for this blueprint template.'}
                                 </p>

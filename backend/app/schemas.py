@@ -145,7 +145,7 @@ class ConnTypeSchema(ConnTypeSchemaBase, AuditBase):
 
 # Parameter Schema (JSON Schema Registry)
 class ParamsSchemaBase(ModelBase):
-    job_nm: str
+    job_definition_id: int
     json_schema: Dict[str, Any]
     description: Optional[str] = None
     org_id: Optional[int] = None
@@ -157,12 +157,14 @@ class ParamsSchemaCreate(ParamsSchemaBase):
 
 class ParamsSchema(ParamsSchemaBase, AuditBase):
     id: int
+    job_nm: Optional[str] = None
     team_nm: Optional[str] = None
     org_code: Optional[str] = None
 
 # Job schemas
 class JobBase(BaseModel):
     job_nm: str
+    job_definition_id: Optional[int] = None
     instance_id: Optional[str] = None
     source_type: Literal["static", "instance", "blueprint"] = "static"
     org_id: Optional[int] = None
@@ -188,10 +190,11 @@ class JobUpdate(BaseModel):
     partition_start_dt: Optional[datetime] = None
     actv_ind: Optional[bool] = True
 
-# Blueprint schemas
-class BlueprintBase(ModelBase):
-    blueprint_nm: str
+# Definition schemas (Unification of Blueprint + Static Job)
+class DefinitionBase(ModelBase):
+    job_nm: str
     description: Optional[str] = None
+    blueprint_ind: bool = False
     yaml_content: Optional[str] = None
     params_schema: Optional[Dict[str, Any]] = None
     code_location_id: Optional[int] = None
@@ -199,14 +202,16 @@ class BlueprintBase(ModelBase):
     team_id: Optional[int] = None
     instance_count: int = 0
 
-class BlueprintCreate(BlueprintBase):
+class DefinitionCreate(DefinitionBase):
     pass
 
-class Blueprint(BlueprintBase, AuditBase):
+class Definition(DefinitionBase, AuditBase):
     id: int
     team_nm: Optional[str] = None
     org_code: Optional[str] = None
     repo_url: Optional[str] = None
+    
+# Definition is the primary model for both Blueprints and Static Pipelines.
 
 class Job(JobBase, AuditBase):
     id: int
