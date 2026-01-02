@@ -194,6 +194,24 @@ def list_blueprints(
         b.org_code = org_code
         b.repo_url = repo_url
         b.instance_count = count
+        
+        # 🟢 Fallback for params_schema if empty on the blueprint record
+        if not b.params_schema:
+            try:
+                base_nm = b.blueprint_nm.replace('_template', '').replace('_pattern', '').replace('_job', '')
+                ps = db.query(models.ETLParamsSchema).filter(
+                    sa.or_(
+                        models.ETLParamsSchema.job_nm == b.blueprint_nm,
+                        models.ETLParamsSchema.job_nm == base_nm,
+                        models.ETLParamsSchema.job_nm == f"{base_nm}_pattern",
+                        models.ETLParamsSchema.job_nm == f"{base_nm}_template"
+                    )
+                ).first()
+                if ps:
+                    b.params_schema = ps.json_schema
+            except Exception:
+                pass
+
         blueprints.append(b)
 
     return {
@@ -566,16 +584,31 @@ def get_pipeline_schema(
     db: Session = Depends(get_db),
     current_user: models.ETLUser = Depends(auth.require_analyst)
 ):
-    """Get the JSON Schema (from definition or blueprint)"""
+    """Get the JSON Schema (from definition or blueprint with robust fallback)"""
     # 1. Instance -> Blueprint
     db_inst = db.query(models.ETLJobInstance).filter(models.ETLJobInstance.id == job_id).first()
     if db_inst:
         blueprint = db.query(models.ETLBlueprint).filter(models.ETLBlueprint.id == db_inst.blueprint_id).first()
         if blueprint:
+            schema = blueprint.params_schema
+            if not schema:
+                # Fallback to etl_params_schema - be robust with naming suffixes
+                base_nm = blueprint.blueprint_nm.replace('_template', '').replace('_pattern', '').replace('_job', '')
+                ps = db.query(models.ETLParamsSchema).filter(
+                    sa.or_(
+                        models.ETLParamsSchema.job_nm == blueprint.blueprint_nm,
+                        models.ETLParamsSchema.job_nm == base_nm,
+                        models.ETLParamsSchema.job_nm == f"{base_nm}_pattern",
+                        models.ETLParamsSchema.job_nm == f"{base_nm}_template"
+                    )
+                ).first()
+                if ps:
+                    schema = ps.json_schema
+
             return schemas.ParamsSchema(
                 id=blueprint.id,
                 job_nm=blueprint.blueprint_nm,
-                json_schema=blueprint.params_schema or {},
+                json_schema=schema or {},
                 description=f"Blueprint Schema: {blueprint.blueprint_nm}",
                 team_nm="System",
                 org_code="SYS",
@@ -586,10 +619,17 @@ def get_pipeline_schema(
     # 2. Static Definition
     db_def = db.query(models.ETLJobDefinition).filter(models.ETLJobDefinition.id == job_id).first()
     if db_def:
+        schema = db_def.params_schema
+        if not schema:
+            # Fallback to etl_params_schema
+            ps = db.query(models.ETLParamsSchema).filter(models.ETLParamsSchema.job_nm == db_def.job_nm).first()
+            if ps:
+                schema = ps.json_schema
+
         return schemas.ParamsSchema(
             id=db_def.id,
             job_nm=db_def.job_nm,
-            json_schema=db_def.params_schema or {},
+            json_schema=schema or {},
             description=f"Static Schema: {db_def.job_nm}",
             team_nm="System",
             org_code="SYS",

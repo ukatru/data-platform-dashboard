@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { GenericSchemaForm } from './GenericSchemaForm';
 import { useAuth } from '../contexts/AuthContext';
-import { Layout, FileJson, Save, Info } from 'lucide-react';
+import { Wand2, Code2, Save, Info } from 'lucide-react';
 
 
 interface DynamicFormRendererProps {
@@ -81,19 +81,19 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
                         onClick={() => setViewMode('visual')}
                         className={`pill-btn ${viewMode === 'visual' ? 'active' : ''}`}
                     >
-                        <Layout size={14} /> Interactive Form
+                        <Wand2 size={14} /> Visual
                     </button>
                     <button
                         onClick={() => setViewMode('code')}
                         className={`pill-btn ${viewMode === 'code' ? 'active' : ''}`}
                     >
-                        <FileJson size={14} /> Raw JSON
+                        <Code2 size={14} /> Code
                     </button>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     <Info size={14} style={{ opacity: 0.5 }} />
-                    {viewMode === 'visual' ? 'Guided configuration' : 'Direct source editor'}
+                    {viewMode === 'visual' ? 'Guided UI Designer' : 'Direct source editor'}
                 </div>
             </div>
 

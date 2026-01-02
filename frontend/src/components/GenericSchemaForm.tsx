@@ -2,7 +2,6 @@ import React from 'react';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import { RJSFSchema, WidgetProps, FieldTemplateProps } from '@rjsf/utils';
-import { motion } from 'framer-motion';
 
 // --- Custom Premium Widgets ---
 
@@ -16,6 +15,7 @@ const CustomTextWidget = (props: WidgetProps) => {
             disabled={props.disabled || props.readonly}
             onChange={(event) => props.onChange(event.target.value)}
             placeholder={props.placeholder}
+            style={{ width: '100%', display: 'block' }}
         />
     );
 };
@@ -28,6 +28,7 @@ const CustomSelectWidget = (props: WidgetProps) => {
             required={props.required}
             disabled={props.disabled || props.readonly}
             onChange={(event) => props.onChange(event.target.value)}
+            style={{ width: '100%', display: 'block' }}
         >
             {!props.required && <option value="">Select...</option>}
             {props.options.enumOptions?.map((option: any, index: number) => (
@@ -41,60 +42,67 @@ const CustomSelectWidget = (props: WidgetProps) => {
 
 const CustomCheckboxWidget = (props: WidgetProps) => {
     return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', padding: '1rem 0' }}>
             <input
                 type="checkbox"
-                style={{ width: '1.25rem', height: '1.25rem', cursor: 'pointer' }}
+                style={{ width: '1.25rem', height: '1.25rem', cursor: 'pointer', accentColor: 'var(--accent-primary)' }}
                 checked={!!props.value}
                 disabled={props.disabled || props.readonly}
                 onChange={(event) => props.onChange(event.target.checked)}
             />
-            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{props.label}</span>
+            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 500 }}>{props.label}</span>
         </div>
     );
 };
 
-// --- Custom Field Template for Layout ---
+// --- Custom Field Template for Clean Layout ---
 
-const CustomFieldTemplate = (props: FieldTemplateProps & { formContext?: any }) => {
-    const { id, classNames, label, help, required, description, errors, children, schema, formContext } = props;
-    const isCompact = formContext?.layout === 'compact';
+const CustomFieldTemplate = (props: FieldTemplateProps) => {
+    const { id, classNames, label, help, required, description, errors, children, schema } = props;
 
     // Hide fieldsets for objects to keep it flat and clean
     if (schema.type === 'object' && !label) {
-        return <div className={classNames}>{children}</div>;
+        return <div className="flat-object-container">{children}</div>;
     }
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`${classNames} nexus-field-container ${isCompact ? 'compact' : ''}`}
-            style={{ marginBottom: isCompact ? '0.75rem' : '1.5rem' }}
-        >
+        <div className="nexus-field-container" style={{ marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {label && (
-                <label htmlFor={id} style={{
-                    display: 'block',
-                    marginBottom: isCompact ? '0.25rem' : '0.5rem',
-                    fontSize: isCompact ? '0.75rem' : '0.8rem',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    color: 'var(--text-secondary)',
-                    opacity: 0.8
-                }}>
+                <label
+                    htmlFor={id}
+                    className="nexus-label"
+                    style={{
+                        display: 'block',
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.08em',
+                        color: 'var(--text-secondary)',
+                        opacity: 0.8
+                    }}
+                >
                     {label}{required ? '*' : ''}
                 </label>
             )}
+
             {description && (
-                <div style={{ fontSize: isCompact ? '0.7rem' : '0.8rem', color: 'var(--text-tertiary)', marginBottom: isCompact ? '0.5rem' : '0.75rem' }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginBottom: '0.25rem', lineHeight: '1.5' }}>
                     {description}
                 </div>
             )}
-            {children}
-            {errors}
-            {help && <div style={{ fontSize: '0.75rem', marginTop: '0.25rem', opacity: 0.6 }}>{help}</div>}
-        </motion.div>
+
+            <div className="field-content" style={{ width: '100%' }}>
+                {children}
+            </div>
+
+            {errors && <div className="nexus-errors" style={{ marginTop: '0.25rem' }}>{errors}</div>}
+
+            {help && (
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontStyle: 'italic', opacity: 0.6 }}>
+                    {help}
+                </div>
+            )}
+        </div>
     );
 };
 
@@ -146,24 +154,28 @@ export const GenericSchemaForm: React.FC<GenericSchemaFormProps> = ({
                 formData={localFormData}
                 validator={validator}
                 widgets={customWidgets}
-                templates={{ FieldTemplate: CustomFieldTemplate }}
+                templates={{
+                    FieldTemplate: CustomFieldTemplate,
+                    ObjectFieldTemplate: (props) => <div>{props.properties.map(p => p.content)}</div>
+                }}
                 formContext={{ layout }}
                 onSubmit={({ formData }) => onSubmit(formData)}
                 onChange={({ formData }) => handleChange(formData)}
                 readonly={readOnly}
             >
+                {/* Always provide a child to prevent RJSF default button. Hide it if readOnly. */}
                 {readOnly ? (
-                    <div />
+                    <div style={{ display: 'none' }} />
                 ) : (
                     children || customActions?.(localFormData) || (
                         <div style={{ marginTop: '2.5rem' }}>
                             <button type="submit" className="btn-primary" style={{
                                 width: '100%',
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                padding: '1rem'
+                                padding: '1rem',
+                                fontSize: '0.95rem',
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.05em'
                             }}>
                                 Save Configuration
                             </button>
@@ -173,39 +185,63 @@ export const GenericSchemaForm: React.FC<GenericSchemaFormProps> = ({
             </Form>
 
             <style>{`
+                /* Kill RJSF default styles that cause ghost borders and overlapping */
+                .nexus-theme .form-group, 
+                .nexus-theme .field,
+                .nexus-theme fieldset {
+                    border: none !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    box-shadow: none !important;
+                    min-width: 0 !important;
+                    position: static !important;
+                }
+
+                .nexus-theme legend {
+                    display: none !important;
+                }
+
+                /* Premium Input Styling */
                 .nexus-theme .nexus-input, 
                 .nexus-theme .nexus-select {
-                    background: rgba(255, 255, 255, 0.03) !important;
-                    border: 1px solid var(--glass-border) !important;
+                    background: rgba(0, 0, 0, 0.25) !important;
+                    border: 1px solid rgba(255, 255, 255, 0.08) !important;
                     color: var(--text-primary) !important;
-                    padding: 0.75rem 1rem !important;
-                    border-radius: 8px !important;
-                    font-size: 0.95rem !important;
+                    padding: 0.85rem 1.15rem !important;
+                    border-radius: 10px !important;
+                    font-size: 0.9rem !important;
                     width: 100% !important;
-                    transition: border-color 0.2s ease !important;
+                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                    outline: none !important;
+                    display: block !important;
                 }
 
                 .nexus-theme .nexus-input:focus, 
                 .nexus-theme .nexus-select:focus {
                     border-color: var(--accent-primary) !important;
-                    outline: none !important;
-                    background: rgba(255, 255, 255, 0.05) !important;
+                    box-shadow: 0 0 0 4px var(--accent-glow) !important;
+                    background: rgba(0, 0, 0, 0.4) !important;
                 }
 
-                .nexus-theme .nexus-field-container {
-                    margin-bottom: 2rem;
-                    padding: 0.5rem 0;
+                .nexus-theme .nexus-input:disabled,
+                .nexus-theme .nexus-select:disabled {
+                    opacity: 0.5 !important;
+                    cursor: not-allowed !important;
+                    background: rgba(255, 255, 255, 0.02) !important;
                 }
 
-                .nexus-theme label {
-                    display: block;
-                    margin-bottom: 0.6rem;
+                /* Error Styling */
+                .nexus-theme .nexus-errors {
+                    color: var(--error);
                     font-size: 0.75rem;
-                    font-weight: 700;
-                    text-transform: uppercase;
-                    letter-spacing: 0.05em;
-                    color: var(--text-secondary) !important;
-                    opacity: 0.8;
+                    list-style: none;
+                    margin-top: 0.5rem;
+                }
+                
+                .nexus-theme .nexus-errors li {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.4rem;
                 }
             `}</style>
         </div>
