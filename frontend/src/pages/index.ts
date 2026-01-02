@@ -12,3 +12,4 @@ export * from './Teams';
 export * from './CodeLocations';
 export * from './Roles';
 export * from './Blueprints/BlueprintList';
+export * from './Variables/VariablesPage';

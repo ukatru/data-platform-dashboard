@@ -58,6 +58,8 @@ export const api = {
         schemas: () => apiInstance.get(`${API_BASE}/metadata/schemas`),
         repositories: () => apiInstance.get(`${API_BASE}/metadata/repositories`),
         blueprints: () => apiInstance.get(`${API_BASE}/metadata/blueprints`),
+        teamVariables: () => apiInstance.get(`${API_BASE}/metadata/variables/team`),
+        orgVariables: () => apiInstance.get(`${API_BASE}/metadata/variables/org`),
     },
 
     // Connections
@@ -142,6 +144,15 @@ export const api = {
         registerCodeLocation: (data: any) => apiInstance.post(`${API_BASE}/management/code-locations`, data),
         patchCodeLocation: (id: number, data: any) => apiInstance.patch(`${API_BASE}/management/code-locations/${id}`, data),
         deleteCodeLocation: (id: number) => apiInstance.delete(`${API_BASE}/management/code-locations/${id}`),
+        // Variables
+        listTeamVariables: () => apiInstance.get(`${API_BASE}/management/variables/team`),
+        createTeamVariable: (data: any) => apiInstance.post(`${API_BASE}/management/variables/team`, data),
+        patchTeamVariable: (id: number, data: any) => apiInstance.patch(`${API_BASE}/management/variables/team/${id}`, data),
+        deleteTeamVariable: (id: number) => apiInstance.delete(`${API_BASE}/management/variables/team/${id}`),
+        listOrgVariables: () => apiInstance.get(`${API_BASE}/management/variables/org`),
+        createOrgVariable: (data: any) => apiInstance.post(`${API_BASE}/management/variables/org`, data),
+        patchOrgVariable: (id: number, data: any) => apiInstance.patch(`${API_BASE}/management/variables/org/${id}`, data),
+        deleteOrgVariable: (id: number) => apiInstance.delete(`${API_BASE}/management/variables/org/${id}`),
     },
 
     // Reports

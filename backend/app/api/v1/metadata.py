@@ -55,6 +55,24 @@ STATUS_COLUMNS = [
     schemas.ColumnMetadata(name="end_dttm", label="End Time", data_type="datetime", visible=False, sortable=True, render_hint="datetime"),
 ]
 
+VARIABLE_COLUMNS = [
+    schemas.ColumnMetadata(name="id", label="ID", data_type="integer", visible=False, sortable=True),
+    schemas.ColumnMetadata(name="var_nm", label="Variable Name", data_type="string", visible=True, sortable=True, width="200px"),
+    schemas.ColumnMetadata(name="var_value", label="Value", data_type="string", visible=True, sortable=True, render_hint="code", width="300px"),
+    schemas.ColumnMetadata(name="description", label="Description", data_type="string", visible=True, sortable=True, width="250px"),
+    schemas.ColumnMetadata(name="creat_dttm", label="Created", data_type="datetime", visible=True, sortable=True, render_hint="datetime", width="150px"),
+    schemas.ColumnMetadata(name="updt_dttm", label="Updated", data_type="datetime", visible=False, sortable=True, render_hint="datetime"),
+]
+
+TEAM_VARIABLE_COLUMNS = [
+    schemas.ColumnMetadata(name="id", label="ID", data_type="integer", visible=False, sortable=True),
+    schemas.ColumnMetadata(name="var_nm", label="Variable Name", data_type="string", visible=True, sortable=True, width="200px"),
+    schemas.ColumnMetadata(name="team_nm", label="Team", data_type="string", visible=True, sortable=True, width="120px"),
+    schemas.ColumnMetadata(name="var_value", label="Value", data_type="string", visible=True, sortable=True, render_hint="code", width="300px"),
+    schemas.ColumnMetadata(name="description", label="Description", data_type="string", visible=True, sortable=True, width="250px"),
+    schemas.ColumnMetadata(name="creat_dttm", label="Created", data_type="datetime", visible=True, sortable=True, render_hint="datetime", width="150px"),
+]
+
 SCHEMA_COLUMNS = [
     schemas.ColumnMetadata(name="id", label="ID", data_type="integer", visible=False, sortable=True),
     schemas.ColumnMetadata(name="job_nm", label="Job Name", data_type="string", visible=True, sortable=True, render_hint="link", width="250px"),
@@ -145,5 +163,23 @@ def get_repository_metadata(current_user: models.ETLUser = Depends(auth.require_
     return schemas.TableMetadata(
         table_name="repositories",
         columns=REPOSITORY_COLUMNS,
+        primary_key="id"
+    )
+
+@router.get("/variables/team", response_model=schemas.TableMetadata)
+def get_team_variable_metadata(current_user: models.ETLUser = Depends(auth.require_analyst)):
+    """Get metadata for team variables"""
+    return schemas.TableMetadata(
+        table_name="team_variables",
+        columns=TEAM_VARIABLE_COLUMNS,
+        primary_key="id"
+    )
+
+@router.get("/variables/org", response_model=schemas.TableMetadata)
+def get_org_variable_metadata(current_user: models.ETLUser = Depends(auth.require_analyst)):
+    """Get metadata for org variables"""
+    return schemas.TableMetadata(
+        table_name="org_variables",
+        columns=VARIABLE_COLUMNS,
         primary_key="id"
     )

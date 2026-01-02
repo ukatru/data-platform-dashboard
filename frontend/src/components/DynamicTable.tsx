@@ -54,22 +54,24 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
     const { hasPermission } = useAuth();
 
     // Column Visibility State
-    const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() => {
-        const initial: Record<string, boolean> = {};
-        metadata.forEach(col => {
-            initial[col.name] = col.visible !== false;
-        });
-        return initial;
-    });
+    const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
 
     // Column Widths State
-    const [widths, setWidths] = useState<Record<string, number>>(() => {
-        const initial: Record<string, number> = {};
+    const [widths, setWidths] = useState<Record<string, number>>({});
+
+    // Sync state when metadata changes
+    useEffect(() => {
+        const visibility: Record<string, boolean> = {};
+        const columnWidths: Record<string, number> = {};
+
         metadata.forEach(col => {
-            initial[col.name] = col.width ? parseInt(col.width) : 150;
+            visibility[col.name] = col.visible !== false;
+            columnWidths[col.name] = col.width ? parseInt(col.width) : 150;
         });
-        return initial;
-    });
+
+        setColumnVisibility(visibility);
+        setWidths(columnWidths);
+    }, [metadata]);
 
     const [showSettings, setShowSettings] = useState(false);
     const settingsRef = useRef<HTMLDivElement>(null);
@@ -155,7 +157,69 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
         }
 
         if (col.render_hint === 'code') {
-            return <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><code style={{ fontFamily: 'monospace', fontSize: '0.8rem', background: 'rgba(0,0,0,0.2)', padding: '0.2rem 0.4rem', borderRadius: '4px', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={value}>{value}</code>{col.name === 'run_id' && <button onClick={() => copyToClipboard(value)} style={{ padding: '0.25rem', opacity: 0.5 }} title="Copy"><Copy size={12} /></button>}</div>;
+            const isRunId = col.name === 'run_id';
+            const hasLogUrl = isRunId && row.log_url;
+
+            return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {hasLogUrl ? (
+                        <a
+                            href={row.log_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="run-id-link"
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.4rem',
+                                color: 'var(--accent-primary)',
+                                textDecoration: 'none',
+                                flex: 1,
+                                overflow: 'hidden'
+                            }}
+                        >
+                            <code style={{
+                                fontFamily: 'monospace',
+                                fontSize: '0.8rem',
+                                background: 'rgba(56, 189, 248, 0.1)',
+                                padding: '0.2rem 0.4rem',
+                                borderRadius: '4px',
+                                color: 'var(--accent-primary)',
+                                border: '1px solid rgba(56, 189, 248, 0.2)',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                            }} title="View in Dagster Cloud">
+                                {value}
+                            </code>
+                            <span style={{ opacity: 0.7 }}><Play size={10} /></span>
+                        </a>
+                    ) : (
+                        <code style={{
+                            fontFamily: 'monospace',
+                            fontSize: '0.8rem',
+                            background: 'rgba(0,0,0,0.2)',
+                            padding: '0.2rem 0.4rem',
+                            borderRadius: '4px',
+                            flex: 1,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                        }} title={value}>
+                            {value}
+                        </code>
+                    )}
+                    {isRunId && (
+                        <button
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); copyToClipboard(value); }}
+                            style={{ padding: '0.25rem', opacity: 0.5, cursor: 'pointer', background: 'none', border: 'none', color: 'inherit' }}
+                            title="Copy Run ID"
+                        >
+                            <Copy size={12} />
+                        </button>
+                    )}
+                </div>
+            );
         }
 
         if (col.render_hint === 'badge') {

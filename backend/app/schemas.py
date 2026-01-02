@@ -241,6 +241,7 @@ class JobStatus(BaseModel):
     run_mde_txt: Optional[str] = None
     strt_dttm: datetime
     end_dttm: Optional[datetime] = None
+    log_url: Optional[str] = None
     
     class Config:
         from_attributes = True
@@ -331,3 +332,37 @@ class TokenData(BaseModel):
 class UserPasswordChange(BaseModel):
     current_password: str
     new_password: str
+
+# Variable Schemas
+class VariableBase(BaseModel):
+    var_nm: str
+    var_value: Optional[str] = None
+    description: Optional[str] = None
+
+class VariableCreate(VariableBase):
+    org_id: Optional[int] = None
+    team_id: Optional[int] = None
+
+class VariableUpdate(BaseModel):
+    var_value: Optional[str] = None
+    description: Optional[str] = None
+
+class OrgVariable(VariableBase):
+    id: int
+    org_id: Optional[int] = None
+    creat_dttm: datetime
+    updt_dttm: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+class TeamVariable(VariableBase):
+    id: int
+    team_id: int
+    team_nm: Optional[str] = None
+    org_id: Optional[int] = None
+    creat_dttm: datetime
+    updt_dttm: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True

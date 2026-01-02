@@ -14,7 +14,8 @@ import {
     Login,
     Profile,
     RolesManagement,
-    BlueprintList
+    BlueprintList,
+    VariablesPage
 } from './pages';
 import { Sidebar } from './components/Sidebar';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -106,6 +107,12 @@ function AppRoutes() {
             <Route path="/schemas" element={
                 <ProtectedRoute requiredPermission="CAN_VIEW_LOGS">
                     <Layout><SchemaList /></Layout>
+                </ProtectedRoute>
+            } />
+
+            <Route path="/variables" element={
+                <ProtectedRoute requiredPermission="CAN_VIEW_LOGS">
+                    <Layout><VariablesPage /></Layout>
                 </ProtectedRoute>
             } />
 

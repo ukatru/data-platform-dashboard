@@ -11,7 +11,8 @@ import {
     UserCircle,
     ShieldCheck,
     GitBranch,
-    Puzzle
+    Puzzle,
+    Settings
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { RoleGuard } from './RoleGuard';
@@ -109,6 +110,7 @@ export const Sidebar: React.FC = () => {
                 <NavItem to="/connections" icon={Database} label="Connections" requiredPermission="CAN_MANAGE_CONNECTIONS" />
                 <NavItem to="/schemas" icon={FileJson} label="Schemas" requiredPermission="CAN_VIEW_LOGS" />
                 <NavItem to="/schedules" icon={Calendar} label="Schedules" requiredPermission="CAN_VIEW_LOGS" />
+                <NavItem to="/variables" icon={Settings} label="Variables" requiredPermission="CAN_VIEW_LOGS" />
                 <NavItem to="/status" icon={Activity} label="Status" requiredPermission="CAN_VIEW_LOGS" />
                 <NavItem to="/code-locations" icon={GitBranch} label="Repositories" requiredPermission="CAN_EDIT_PIPELINES" />
                 <div style={{ margin: '0.75rem 0', height: '1px', background: 'var(--glass-border)' }}></div>
