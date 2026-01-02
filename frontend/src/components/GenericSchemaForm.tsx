@@ -76,11 +76,12 @@ const CustomFieldTemplate = (props: FieldTemplateProps & { formContext?: any }) 
                 <label htmlFor={id} style={{
                     display: 'block',
                     marginBottom: isCompact ? '0.25rem' : '0.5rem',
-                    fontSize: isCompact ? '0.75rem' : '0.85rem',
+                    fontSize: isCompact ? '0.75rem' : '0.8rem',
                     fontWeight: 600,
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
-                    color: 'var(--accent-primary)'
+                    color: 'var(--text-secondary)',
+                    opacity: 0.8
                 }}>
                     {label}{required ? '*' : ''}
                 </label>
@@ -177,41 +178,34 @@ export const GenericSchemaForm: React.FC<GenericSchemaFormProps> = ({
                     background: rgba(255, 255, 255, 0.03) !important;
                     border: 1px solid var(--glass-border) !important;
                     color: var(--text-primary) !important;
-                    padding: 0.85rem 1rem !important;
+                    padding: 0.75rem 1rem !important;
                     border-radius: 8px !important;
                     font-size: 0.95rem !important;
                     width: 100% !important;
-                    transition: all 0.2s ease !important;
+                    transition: border-color 0.2s ease !important;
                 }
 
                 .nexus-theme .nexus-input:focus, 
                 .nexus-theme .nexus-select:focus {
-                    background: rgba(99, 102, 241, 0.05) !important;
                     border-color: var(--accent-primary) !important;
-                    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15) !important;
                     outline: none !important;
-                }
-
-                .nexus-theme .nexus-select option {
-                    background-color: var(--bg-secondary);
-                    color: var(--text-primary);
+                    background: rgba(255, 255, 255, 0.05) !important;
                 }
 
                 .nexus-theme .nexus-field-container {
-                    background: rgba(255, 255, 255, 0.01);
-                    padding: 1.25rem;
-                    border-radius: 12px;
-                    border: 1px solid transparent;
-                    transition: all 0.2s ease;
+                    margin-bottom: 2rem;
+                    padding: 0.5rem 0;
                 }
 
-                .nexus-theme .nexus-field-container.compact {
-                    padding: 0.85rem 1rem;
-                }
-
-                .nexus-theme .nexus-field-container:hover {
-                    background: rgba(255, 255, 255, 0.03);
-                    border-color: rgba(255, 255, 255, 0.05);
+                .nexus-theme label {
+                    display: block;
+                    margin-bottom: 0.6rem;
+                    font-size: 0.75rem;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    letter-spacing: 0.05em;
+                    color: var(--text-secondary) !important;
+                    opacity: 0.8;
                 }
             `}</style>
         </div>

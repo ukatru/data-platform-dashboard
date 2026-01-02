@@ -62,7 +62,8 @@ export const api = {
 
     // Connections
     connections: {
-        list: () => apiInstance.get(`${API_BASE}/connections`),
+        list: (limit: number = 100, offset: number = 0, search?: string) =>
+            apiInstance.get(`${API_BASE}/connections`, { params: { limit, offset, search } }),
         get: (id: number) => apiInstance.get(`${API_BASE}/connections/${id}`),
         create: (data: any) => apiInstance.post(`${API_BASE}/connections`, data),
         update: (id: number, data: any) => apiInstance.put(`${API_BASE}/connections/${id}`, data),
@@ -76,7 +77,8 @@ export const api = {
 
     // Schedules
     schedules: {
-        list: () => apiInstance.get(`${API_BASE}/schedules`),
+        list: (limit: number = 100, offset: number = 0, search?: string) =>
+            apiInstance.get(`${API_BASE}/schedules`, { params: { limit, offset, search } }),
         get: (id: number) => apiInstance.get(`${API_BASE}/schedules/${id}`),
         create: (data: any) => apiInstance.post(`${API_BASE}/schedules`, data),
         update: (id: number, data: any) => apiInstance.put(`${API_BASE}/schedules/${id}`, data),
@@ -102,7 +104,8 @@ export const api = {
 
     // Pipelines
     pipelines: {
-        list: () => apiInstance.get(`${API_BASE}/pipelines`),
+        list: (limit: number = 100, offset: number = 0, search?: string) =>
+            apiInstance.get(`${API_BASE}/pipelines`, { params: { limit, offset, search } }),
         get: (id: number) => apiInstance.get(`${API_BASE}/pipelines/${id}`),
         create: (data: any) => apiInstance.post(`${API_BASE}/pipelines`, data),
         update: (id: number, data: any) => apiInstance.put(`${API_BASE}/pipelines/${id}`, data),
@@ -110,7 +113,8 @@ export const api = {
         getParams: (id: number) => apiInstance.get(`${API_BASE}/pipelines/${id}/params`),
         updateParams: (id: number, params: any) => apiInstance.put(`${API_BASE}/pipelines/${id}/params`, params),
         getSchema: (id: number) => apiInstance.get(`${API_BASE}/pipelines/${id}/schema`),
-        listBlueprints: () => apiInstance.get(`${API_BASE}/pipelines/blueprints`),
+        listBlueprints: (limit: number = 100, offset: number = 0, search?: string) =>
+            apiInstance.get(`${API_BASE}/pipelines/blueprints`, { params: { limit, offset, search } }),
         validateId: (instanceId: string) => apiInstance.get(`${API_BASE}/pipelines/validate-id/${instanceId}`),
     },
 
@@ -165,4 +169,11 @@ export interface TableMetadata {
     table_name: string;
     columns: ColumnMetadata[];
     primary_key: string;
+}
+
+export interface PaginatedResponse<T> {
+    items: T[];
+    total_count: number;
+    limit: number;
+    offset: number;
 }

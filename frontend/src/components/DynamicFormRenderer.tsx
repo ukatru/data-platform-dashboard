@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { GenericSchemaForm } from './GenericSchemaForm';
 import { useAuth } from '../contexts/AuthContext';
-import { Wand2, Code2, Save, Info } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Layout, FileJson, Save, Info } from 'lucide-react';
+
 
 interface DynamicFormRendererProps {
     pipelineId: number;
@@ -81,92 +81,76 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
                         onClick={() => setViewMode('visual')}
                         className={`pill-btn ${viewMode === 'visual' ? 'active' : ''}`}
                     >
-                        <Wand2 size={14} /> Visual
+                        <Layout size={14} /> Interactive Form
                     </button>
                     <button
                         onClick={() => setViewMode('code')}
                         className={`pill-btn ${viewMode === 'code' ? 'active' : ''}`}
                     >
-                        <Code2 size={14} /> Code
+                        <FileJson size={14} /> Raw JSON
                     </button>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     <Info size={14} style={{ opacity: 0.5 }} />
-                    {viewMode === 'visual' ? 'Guided UI Designer' : 'Direct Source Editor'}
+                    {viewMode === 'visual' ? 'Guided configuration' : 'Direct source editor'}
                 </div>
             </div>
 
-            <AnimatePresence mode="wait">
-                {viewMode === 'visual' ? (
-                    <motion.div
-                        key="visual"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.2 }}
-                    >
-                        <GenericSchemaForm
-                            schema={schema}
-                            formData={formData}
-                            onSubmit={handleSubmit}
-                            onChange={(data: any) => setFormData(data)}
+            {viewMode === 'visual' ? (
+                <div key="visual">
+                    <GenericSchemaForm
+                        schema={schema}
+                        formData={formData}
+                        onSubmit={handleSubmit}
+                        onChange={(data: any) => setFormData(data)}
+                        readOnly={readOnly || !canEdit}
+                    />
+                </div>
+            ) : (
+                <div key="code">
+                    <div style={{ position: 'relative' }}>
+                        <textarea
+                            className="terminal"
+                            style={{
+                                width: '100%',
+                                height: '500px',
+                                resize: 'none',
+                                padding: '1.5rem',
+                                outline: 'none',
+                                border: '1px solid var(--glass-border)',
+                                fontSize: '0.9rem',
+                                background: 'rgba(0,0,0,0.4)',
+                                color: '#a5b4fc',
+                                borderRadius: 'var(--radius-md)',
+                                fontFamily: 'monospace'
+                            }}
+                            value={JSON.stringify(formData, null, 4)}
                             readOnly={readOnly || !canEdit}
+                            onChange={(e) => {
+                                try {
+                                    const parsed = JSON.parse(e.target.value);
+                                    setFormData(parsed);
+                                } catch (err) { }
+                            }}
                         />
-                    </motion.div>
-                ) : (
-                    <motion.div
-                        key="code"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.2 }}
-                    >
-                        <div style={{ position: 'relative' }}>
-                            <textarea
-                                className="terminal"
+                        {!readOnly && canEdit && (
+                            <button
+                                onClick={() => handleSubmit(formData)}
+                                className="btn-primary"
                                 style={{
-                                    width: '100%',
-                                    height: '500px',
-                                    resize: 'none',
-                                    padding: '1.5rem',
-                                    outline: 'none',
-                                    border: '1px solid var(--glass-border)',
-                                    fontSize: '0.9rem'
+                                    position: 'absolute',
+                                    bottom: '1.5rem',
+                                    right: '1.5rem',
+                                    padding: '0.6rem 1.25rem'
                                 }}
-                                value={JSON.stringify(formData, null, 4)}
-                                readOnly={readOnly || !canEdit}
-                                onChange={(e) => {
-                                    try {
-                                        const parsed = JSON.parse(e.target.value);
-                                        setFormData(parsed);
-                                    } catch (err) {
-                                        // Silent error
-                                    }
-                                }}
-                            />
-                            {!readOnly && canEdit && (
-                                <button
-                                    onClick={() => handleSubmit(formData)}
-                                    className="btn-primary"
-                                    style={{
-                                        position: 'absolute',
-                                        bottom: '1.5rem',
-                                        right: '1.5rem',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem',
-                                        padding: '0.6rem 1.25rem',
-                                        fontSize: '0.85rem'
-                                    }}
-                                >
-                                    <Save size={16} /> Save Changes
-                                </button>
-                            )}
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                            >
+                                <Save size={16} /> Save Changes
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
 
             <style>{`
                 .pill-toggle-container {

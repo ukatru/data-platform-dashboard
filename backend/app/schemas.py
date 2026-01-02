@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, Dict, Any, List, Literal
+from typing import Optional, Dict, Any, List, Literal, Generic, TypeVar
 from datetime import datetime
 
 # Base schemas with audit fields
@@ -31,6 +31,15 @@ class TableMetadata(BaseModel):
     table_name: str
     columns: List[ColumnMetadata]
     primary_key: str
+
+# Pagination Generic
+T = TypeVar("T")
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    items: List[T]
+    total_count: int
+    limit: int
+    offset: int
 
 # SaaS Hierarchy Schemas
 class OrgBase(ModelBase):
@@ -154,7 +163,7 @@ class ParamsSchema(ParamsSchemaBase, AuditBase):
 # Job schemas
 class JobBase(BaseModel):
     job_nm: str
-    instance_id: str
+    instance_id: Optional[str] = None
     source_type: Literal["static", "instance", "blueprint"] = "static"
     org_id: Optional[int] = None
     team_id: Optional[int] = None

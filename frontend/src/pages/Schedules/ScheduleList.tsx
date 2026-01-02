@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api, TableMetadata } from '../../services/api';
 import { DynamicTable } from '../../components/DynamicTable';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Search } from 'lucide-react';
 import { RoleGuard } from '../../components/RoleGuard';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -10,7 +10,8 @@ export const ScheduleList: React.FC = () => {
     const [schedules, setSchedules] = useState<any[]>([]);
     const [showModal, setShowModal] = useState(false);
     const [editingSched, setEditingSched] = useState<any>(null);
-    const { user, currentTeamId } = useAuth();
+    const { currentTeamId } = useAuth();
+    const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         slug: '',
         cron: '',
@@ -18,6 +19,11 @@ export const ScheduleList: React.FC = () => {
         actv_ind: true,
         team_id: '' as string | number
     });
+
+    const [search, setSearch] = useState('');
+    const [pageLimit, setPageLimit] = useState(25);
+    const [pageOffset, setPageOffset] = useState(0);
+    const [totalCount, setTotalCount] = useState(0);
 
     useEffect(() => {
         const fetchMetadata = async () => {
@@ -32,17 +38,21 @@ export const ScheduleList: React.FC = () => {
     }, []);
 
     const fetchSchedules = async () => {
+        setLoading(true);
         try {
-            const res = await api.schedules.list();
-            setSchedules(res.data);
+            const res = await api.schedules.list(pageLimit, pageOffset, search);
+            setSchedules(res.data.items);
+            setTotalCount(res.data.total_count);
         } catch (err) {
             console.error('Failed to fetch schedules', err);
+        } finally {
+            setLoading(false);
         }
     };
 
     useEffect(() => {
         fetchSchedules();
-    }, [currentTeamId]);
+    }, [currentTeamId, pageLimit, pageOffset, search]);
 
     const handleCreate = () => {
         setEditingSched(null);
@@ -79,12 +89,12 @@ export const ScheduleList: React.FC = () => {
             setShowModal(false);
             fetchSchedules();
         } catch (err: any) {
-            alert(`Failed to save schedule: ${err.response?.data?.detail || err.message}`);
+            alert(`Failed to save: ${err.response?.data?.detail || err.message}`);
         }
     };
 
     const handleDelete = async (row: any) => {
-        if (!confirm(`Delete schedule "${row.slug}"? This cannot be undone.`)) return;
+        if (!confirm(`Delete schedule "${row.slug}"?`)) return;
         try {
             await api.schedules.delete(row.id);
             fetchSchedules();
@@ -93,22 +103,34 @@ export const ScheduleList: React.FC = () => {
         }
     };
 
-    if (!metadata) {
-        return <div>Loading metadata...</div>;
-    }
+    if (!metadata) return <div style={{ padding: '4rem', textAlign: 'center' }}>Initializing...</div>;
 
     return (
         <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <div>
-                    <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Schedules</h1>
-                    <p style={{ color: 'var(--text-secondary)' }}>Manage cron-based execution schedules</p>
+                    <h1 style={{ fontSize: '2.5rem', fontWeight: 800, background: 'linear-gradient(to right, #fff, rgba(255,255,255,0.5))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Schedules</h1>
+                    <p style={{ color: 'var(--text-tertiary)', fontSize: '1.1rem' }}>Orchestrate your pipelines with precision timing</p>
                 </div>
                 <RoleGuard requiredRole="DPE_DEVELOPER">
-                    <button className="btn-primary" onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <Plus size={20} /> New Schedule
+                    <button className="btn-primary" onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                        <Plus size={18} /> New Schedule
                     </button>
                 </RoleGuard>
+            </div>
+
+            <div className="command-bar">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
+                    <Search size={18} color="var(--accent-primary)" />
+                    <input
+                        type="text"
+                        placeholder="Search schedules..."
+                        value={search}
+                        onChange={(e) => { setSearch(e.target.value); setPageOffset(0); }}
+                        className="premium-input"
+                        style={{ background: 'transparent', border: 'none', outline: 'none', width: '100%', fontSize: '0.9rem' }}
+                    />
+                </div>
             </div>
 
             <DynamicTable
@@ -119,52 +141,55 @@ export const ScheduleList: React.FC = () => {
                 primaryKey={metadata.primary_key}
                 editRole="DPE_DEVELOPER"
                 deleteRole="DPE_DEVELOPER"
+                totalCount={totalCount}
+                limit={pageLimit}
+                offset={pageOffset}
+                onPageChange={setPageOffset}
+                onLimitChange={(l) => { setPageLimit(l); setPageOffset(0); }}
+                loading={loading}
             />
 
             {showModal && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div className="glass" style={{ width: '500px', padding: '2rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                            <h3>{editingSched ? 'Edit Schedule' : 'New Schedule'}</h3>
-                            <button onClick={() => setShowModal(false)}><X /></button>
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(12px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div className="premium-glass" style={{ width: '500px', padding: '2.5rem', background: '#0f172a', borderRadius: 'var(--radius-xl)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
+                            <h2 style={{ fontSize: '1.5rem', fontWeight: 700 }}>{editingSched ? 'Edit Schedule' : 'New Schedule'}</h2>
+                            <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }}><X size={24} /></button>
                         </div>
 
-                        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                                    Slug *
-                                </label>
+                        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Slug *</label>
                                 <input
                                     required
+                                    className="premium-input"
                                     value={formData.slug}
                                     onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
                                     placeholder="e.g. daily_at_midnight"
+                                    style={{ padding: '0.8rem 1rem', width: '100%' }}
                                 />
                             </div>
 
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                                    Cron Expression *
-                                </label>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Cron Expression *</label>
                                 <input
                                     required
+                                    className="premium-input"
                                     value={formData.cron}
                                     onChange={(e) => setFormData({ ...formData, cron: e.target.value })}
                                     placeholder="0 0 * * *"
-                                    style={{ fontFamily: 'monospace' }}
+                                    style={{ padding: '0.8rem 1rem', width: '100%', fontFamily: 'monospace' }}
                                 />
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                                    Format: minute hour day month weekday
-                                </div>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>minute hour day month weekday</span>
                             </div>
 
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                                    Timezone
-                                </label>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Timezone</label>
                                 <select
+                                    className="premium-input"
                                     value={formData.timezone}
                                     onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
+                                    style={{ padding: '0.8rem 1rem', width: '100%', cursor: 'pointer' }}
                                 >
                                     <option value="UTC">UTC</option>
                                     <option value="America/New_York">America/New_York</option>
@@ -174,44 +199,20 @@ export const ScheduleList: React.FC = () => {
                                 </select>
                             </div>
 
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                                    Target Team *
-                                </label>
-                                <select
-                                    required
-                                    value={formData.team_id}
-                                    onChange={(e) => setFormData({ ...formData, team_id: e.target.value ? parseInt(e.target.value) : '' })}
-                                >
-                                    <option value="">Select Team...</option>
-                                    {user?.team_memberships?.map(m => (
-                                        <option key={m.team.id} value={m.team.id}>
-                                            {m.team.team_nm} ({m.role.role_nm.replace('DPE_', '').replace(/_/g, ' ')})
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                 <input
                                     type="checkbox"
                                     id="actv_ind"
                                     checked={formData.actv_ind}
                                     onChange={(e) => setFormData({ ...formData, actv_ind: e.target.checked })}
-                                    style={{ width: 'auto' }}
+                                    style={{ width: '1.2rem', height: '1.2rem', cursor: 'pointer' }}
                                 />
-                                <label htmlFor="actv_ind" style={{ margin: 0, cursor: 'pointer' }}>
-                                    Active
-                                </label>
+                                <label htmlFor="actv_ind" style={{ fontSize: '0.9rem', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 500 }}>Active</label>
                             </div>
 
                             <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                                <button type="submit" className="btn-primary" style={{ flex: 1 }}>
-                                    {editingSched ? 'Update' : 'Create'}
-                                </button>
-                                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">
-                                    Cancel
-                                </button>
+                                <button type="submit" className="btn-primary" style={{ flex: 1, height: '48px', fontWeight: 600 }}>{editingSched ? 'Update' : 'Create'}</button>
+                                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary" style={{ flex: 1, height: '48px', fontWeight: 600 }}>Cancel</button>
                             </div>
                         </form>
                     </div>

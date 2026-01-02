@@ -83,8 +83,10 @@ export const PipelineDetail: React.FC = () => {
           {pipeline.job_nm}
         </h1>
         <div style={{ display: 'flex', gap: '2rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-          <span>Instance ID: {pipeline.instance_id}</span>
-          <span className="status-badge" style={{ fontSize: '0.75rem' }}>Source: {pipeline.source_type}</span>
+          <span>Instance ID: {pipeline.instance_id || 'None'}</span>
+          <span className="status-badge" style={{ fontSize: '0.75rem' }}>
+            Source: {pipeline.source_type === 'static' ? 'Git Defined' : (pipeline.source_type === 'blueprint' ? 'Blueprint Template' : 'Instance')}
+          </span>
           <span>Created: {new Date(pipeline.creat_dttm).toLocaleDateString()}</span>
         </div>
       </div>
@@ -138,7 +140,7 @@ export const PipelineDetail: React.FC = () => {
             </p>
             <DynamicFormRenderer
               pipelineId={Number(id)}
-              readOnly={pipeline.source_type === 'static'}
+              readOnly={false}
             />
           </div>
         )}

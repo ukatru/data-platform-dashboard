@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 import sqlalchemy as sa
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union, Optional
 from datetime import datetime
 import sys
 
@@ -16,10 +16,13 @@ from ...services.validator import validate_params_against_schema
 
 router = APIRouter()
 
-@router.get("", response_model=List[schemas.Job])
-@router.get("/", response_model=List[schemas.Job])
-@router.get("/instances", response_model=List[schemas.Job])
+@router.get("", response_model=schemas.PaginatedResponse[schemas.Job])
+@router.get("/", response_model=schemas.PaginatedResponse[schemas.Job])
+@router.get("/instances", response_model=schemas.PaginatedResponse[schemas.Job])
 def list_pipelines(
+    search: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
     db: Session = Depends(get_db),
     tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context),
     current_user: models.ETLUser = Depends(auth.require_analyst)
@@ -41,6 +44,8 @@ def list_pipelines(
         static_query = static_query.filter(models.ETLJobDefinition.org_id == tenant_ctx.org_id)
     if tenant_ctx.team_id:
         static_query = static_query.filter(models.ETLJobDefinition.team_id == tenant_ctx.team_id)
+    if search:
+        static_query = static_query.filter(models.ETLJobDefinition.job_nm.ilike(f"%{search}%"))
 
     # 2. Fetch Instances (Invocations)
     instance_query = db.query(
@@ -62,6 +67,9 @@ def list_pipelines(
         instance_query = instance_query.filter(models.ETLJobInstance.org_id == tenant_ctx.org_id)
     if tenant_ctx.team_id:
         instance_query = instance_query.filter(models.ETLJobInstance.team_id == tenant_ctx.team_id)
+    if search:
+        # Note: Instance job_nm is inherited from blueprint name via join
+        instance_query = instance_query.filter(models.ETLBlueprint.blueprint_nm.ilike(f"%{search}%"))
 
     jobs = []
     
@@ -78,7 +86,7 @@ def list_pipelines(
         jobs.append(schemas.Job(
             id=job_def.id,
             job_nm=job_def.job_nm,
-            instance_id="STATIC",
+            instance_id=None,
             source_type="static",
             org_id=job_def.org_id,
             team_id=job_def.team_id,
@@ -98,7 +106,7 @@ def list_pipelines(
         ))
 
     # Process Instance Jobs (Linked to Blueprints)
-    for inst, b_nm, team_nm, org_code, s_slug, s_cron, repo_url in instance_query.all():
+    for inst, b_nm, t_nm, o_code, s_slug, s_cron, repo_url in instance_query.all():
         schedule_txt = "Manual"
         if inst.cron_schedule:
             schedule_txt = f"Custom: {inst.cron_schedule}"
@@ -112,12 +120,12 @@ def list_pipelines(
             source_type="instance",
             org_id=inst.org_id,
             team_id=inst.team_id,
-            team_nm=team_nm,
-            org_code=org_code,
+            team_nm=t_nm,
+            org_code=o_code,
             code_location_id=inst.code_location_id,
-            schema_link="View",
             schedule=schedule_txt,
             cron_schedule=inst.cron_schedule,
+            partition_start_dt=inst.partition_start_dt,
             actv_ind=inst.actv_ind,
             creat_by_nm=inst.creat_by_nm,
             creat_dttm=inst.creat_dttm,
@@ -125,11 +133,25 @@ def list_pipelines(
             updt_dttm=inst.updt_dttm,
             repo_url=repo_url
         ))
-        
-    return jobs
 
-@router.get("/blueprints", response_model=List[schemas.Blueprint])
+    # Sort jobs by creation date for stable pagination
+    jobs.sort(key=lambda x: x.creat_dttm, reverse=True)
+    
+    total_count = len(jobs)
+    paginated_jobs = jobs[offset : offset + limit]
+    
+    return {
+        "items": paginated_jobs,
+        "total_count": total_count,
+        "limit": limit,
+        "offset": offset
+    }
+
+@router.get("/blueprints", response_model=schemas.PaginatedResponse[schemas.Blueprint])
 def list_blueprints(
+    search: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
     db: Session = Depends(get_db),
     tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context),
     current_user: models.ETLUser = Depends(auth.require_analyst)
@@ -160,8 +182,12 @@ def list_blueprints(
         query = query.filter(models.ETLBlueprint.org_id == tenant_ctx.org_id)
     if tenant_ctx.team_id:
         query = query.filter(models.ETLBlueprint.team_id == tenant_ctx.team_id)
+    if search:
+        query = query.filter(models.ETLBlueprint.blueprint_nm.ilike(f"%{search}%"))
         
-    results = query.all()
+    total_count = query.count()
+    results = query.order_by(models.ETLBlueprint.creat_dttm.desc()).offset(offset).limit(limit).all()
+
     blueprints = []
     for b, team_nm, org_code, repo_url, count in results:
         b.team_nm = team_nm
@@ -169,7 +195,13 @@ def list_blueprints(
         b.repo_url = repo_url
         b.instance_count = count
         blueprints.append(b)
-    return blueprints
+
+    return {
+        "items": blueprints,
+        "total_count": total_count,
+        "limit": limit,
+        "offset": offset
+    }
     
 @router.post("", response_model=schemas.Job, status_code=status.HTTP_201_CREATED)
 def create_instance(
@@ -246,7 +278,7 @@ def get_pipeline(
         return schemas.Job(
             id=job_def.id,
             job_nm=job_def.job_nm,
-            instance_id="STATIC",
+            instance_id=None,
             source_type="static",
             org_id=job_def.org_id,
             team_id=job_def.team_id,

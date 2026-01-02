@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 import sys
 import logging
 import socket
@@ -45,8 +45,11 @@ class DiagnosticTracer:
             if message:
                 self.logs[-1]["message"] = message
 
-@router.get("", response_model=List[schemas.Connection])
+@router.get("", response_model=schemas.PaginatedResponse[schemas.Connection])
 def list_connections(
+    search: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
     db: Session = Depends(get_db),
     tenant_ctx: auth.TenantContext = Depends(auth.get_tenant_context),
     current_user: models.ETLUser = Depends(auth.require_analyst)
@@ -66,7 +69,11 @@ def list_connections(
         user_team_ids = [m.team_id for m in tenant_ctx.user.team_memberships if m.actv_ind]
         query = query.filter(models.ETLConnection.team_id.in_(user_team_ids))
     
-    results = query.all()
+    if search:
+        query = query.filter(models.ETLConnection.conn_nm.ilike(f"%{search}%"))
+
+    total_count = query.count()
+    results = query.order_by(models.ETLConnection.creat_dttm.desc()).offset(offset).limit(limit).all()
     conns = []
     for c, team_nm, org_code in results:
         # Mask secrets
@@ -77,7 +84,13 @@ def list_connections(
         c.team_nm = team_nm
         c.org_code = org_code
         conns.append(c)
-    return conns
+
+    return {
+        "items": conns,
+        "total_count": total_count,
+        "limit": limit,
+        "offset": offset
+    }
 
 @router.post("", response_model=schemas.Connection, status_code=status.HTTP_201_CREATED)
 def create_connection(
