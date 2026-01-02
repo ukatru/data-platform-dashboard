@@ -156,6 +156,10 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
                 setError("Instance ID is required.");
                 return;
             }
+            if (!/^[a-z0-9_]+$/.test(formData.instance_id)) {
+                setError("Instance ID can only contain lowercase letters, numbers, and underscores.");
+                return;
+            }
             if (idValidating) {
                 setError("Validation in progress... please wait.");
                 return;
@@ -334,9 +338,9 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
                                             <input
                                                 type="text"
                                                 className={`nexus-input ${idAvailable === false ? 'border-red-500' : ''}`}
-                                                placeholder="e.g. sales-ingest-v1"
+                                                placeholder="e.g. sales__ingest_v1"
                                                 value={formData.instance_id}
-                                                onChange={(e) => setFormData({ ...formData, instance_id: e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '') })}
+                                                onChange={(e) => setFormData({ ...formData, instance_id: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') })}
                                             />
                                             <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }}>
                                                 {idValidating && <div className="spinner-xs" />}
@@ -344,7 +348,7 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
                                                 {idAvailable === false && <AlertCircle size={16} color="#f87171" />}
                                             </div>
                                         </div>
-                                        <p className="field-hint">Used for runtime routing and identification. Only letters, numbers, hyphens, and underscores allowed.</p>
+                                        <p className="field-hint">Used for runtime routing and identification. Only letters, numbers, and underscores allowed.</p>
                                     </div>
 
                                     <div className="nexus-field-container">

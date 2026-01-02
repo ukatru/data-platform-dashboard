@@ -53,7 +53,7 @@ export const PipelineList: React.FC = () => {
         const fetchReferenceData = async () => {
             try {
                 const schedRes = await api.schedules.list();
-                setSchedules(schedRes.data);
+                setSchedules(schedRes.data.items || []);
             } catch (err) {
                 console.error('Failed to fetch reference data', err);
             }

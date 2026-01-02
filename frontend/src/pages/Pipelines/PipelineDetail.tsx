@@ -40,8 +40,8 @@ export const PipelineDetail: React.FC = () => {
         // Fetch instances if blueprint
         if (res.data.source_type === 'blueprint') {
           try {
-            const instRes = await api.pipelines.list(); // Filter in-frontend for now or add explicit endpoint
-            setInvocations(instRes.data.filter((i: any) => i.job_nm === res.data.job_nm && i.source_type === 'instance'));
+            const instRes = await api.pipelines.list();
+            setInvocations((instRes.data.items || []).filter((i: any) => i.job_nm === res.data.job_nm && i.source_type === 'instance'));
           } catch (err) {
             console.log('Failed to fetch invocations');
           }
