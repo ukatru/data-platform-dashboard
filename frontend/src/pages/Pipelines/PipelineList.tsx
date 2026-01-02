@@ -80,10 +80,11 @@ export const PipelineList: React.FC = () => {
 
     const handleEdit = (pipeline: any) => {
         setEditingPipeline(pipeline);
+        console.log('Editing Pipeline:', pipeline); // Debug log
         setFormData({
             job_nm: pipeline.job_nm,
             instance_id: pipeline.instance_id,
-            schedule_id: pipeline.schedule_id,
+            schedule_id: pipeline.schedule_id || undefined,
             cron_schedule: pipeline.cron_schedule || '',
             partition_start_dt: pipeline.partition_start_dt ? new Date(pipeline.partition_start_dt).toISOString().split('T')[0] : '',
             actv_ind: pipeline.actv_ind !== false,
@@ -219,7 +220,15 @@ export const PipelineList: React.FC = () => {
                                 <select
                                     className="premium-input"
                                     value={formData.schedule_id || ''}
-                                    onChange={(e) => setFormData({ ...formData, schedule_id: e.target.value ? parseInt(e.target.value) : undefined })}
+                                    onChange={(e) => {
+                                        const newSchedId = e.target.value ? parseInt(e.target.value) : undefined;
+                                        setFormData({
+                                            ...formData,
+                                            schedule_id: newSchedId,
+                                            // Clear custom cron if a named schedule is selected
+                                            cron_schedule: newSchedId ? '' : formData.cron_schedule
+                                        });
+                                    }}
                                     style={{ width: '100%', padding: '0.8rem 1rem', borderRadius: '8px' }}
                                 >
                                     <option value="">-- Manual Execution --</option>
@@ -228,6 +237,20 @@ export const PipelineList: React.FC = () => {
                                     ))}
                                 </select>
                             </div>
+
+                            {(!formData.schedule_id) && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Custom Cron Override (Optional)</label>
+                                    <input
+                                        className="premium-input"
+                                        value={formData.cron_schedule}
+                                        onChange={(e) => setFormData({ ...formData, cron_schedule: e.target.value })}
+                                        placeholder="* * * * * (e.g., 0 0 * * *)"
+                                        style={{ width: '100%', padding: '0.8rem 1rem', borderRadius: '8px', border: formData.cron_schedule ? '1px solid var(--accent-primary)' : '1px solid rgba(255,255,255,0.1)' }}
+                                    />
+                                    <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Leave empty for strict manual execution, or provide a cron string for custom timing.</p>
+                                </div>
+                            )}
 
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                 <input
