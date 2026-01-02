@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api, TableMetadata } from '../../services/api';
 import { DynamicTable } from '../../components/DynamicTable';
-import { Search, Puzzle, Rocket, Info, Workflow } from 'lucide-react';
+import { Puzzle, Rocket, Info, Workflow, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Pagination } from '../../components/Pagination';
 import { RoleGuard } from '../../components/RoleGuard';
@@ -102,19 +102,25 @@ export const BlueprintList: React.FC = () => {
                 </div>
             </div>
 
-            <div className="glass premium-glass" style={{ padding: '1.5rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.3)' }}>
-                <Search size={20} color="var(--accent-primary)" />
-                <input
-                    type="text"
-                    placeholder="Search blueprints (e.g. sftp, showcase)..."
-                    value={search}
-                    onChange={(e) => {
-                        setSearch(e.target.value);
-                        setPageOffset(0);
-                    }}
-                    className="premium-input"
-                    style={{ background: 'transparent', border: 'none', outline: 'none', width: '100%', boxShadow: 'none' }}
-                />
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '2.5rem' }}>
+                <div className="premium-search-container" style={{ position: 'relative', width: '400px' }}>
+                    <X
+                        size={18}
+                        style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', opacity: search ? 1 : 0, transition: 'opacity 0.2s', zIndex: 10 }}
+                        onClick={() => setSearch('')}
+                    />
+                    <input
+                        type="text"
+                        placeholder="Search blueprints (e.g. sftp, showcase)..."
+                        value={search}
+                        onChange={(e) => {
+                            setSearch(e.target.value);
+                            setPageOffset(0);
+                        }}
+                        className="premium-input"
+                        style={{ padding: '0.6rem 2.5rem 0.6rem 1rem', width: '100%', fontSize: '0.9rem' }}
+                    />
+                </div>
             </div>
 
             <div className="premium-glass" style={{

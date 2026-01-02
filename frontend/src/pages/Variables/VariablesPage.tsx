@@ -21,6 +21,7 @@ export const VariablesPage: React.FC = () => {
     const [editingVar, setEditingVar] = useState<any | null>(null);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [search, setSearch] = useState('');
 
     // Default to Global Variables for Platform Admins in the "All Teams" view
     useEffect(() => {
@@ -127,17 +128,34 @@ export const VariablesPage: React.FC = () => {
                         Manage configuration settings and environment variables
                     </p>
                 </div>
-                {((activeTab === 'team' && canManageTeam) || (activeTab === 'org' && canManageGlobal)) && (
-                    <button
-                        className="btn-primary"
-                        onClick={() => { closeModal(); setIsModalOpen(true); }}
-                        disabled={activeTab === 'team' && !currentTeamId}
-                        title={activeTab === 'team' && !currentTeamId ? "Please select a team in the sidebar first" : ""}
-                    >
-                        <Plus size={18} style={{ marginRight: '0.5rem' }} />
-                        Add {activeTab === 'team' ? 'Team' : 'Global'} Variable
-                    </button>
-                )}
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    <div className="premium-search-container" style={{ position: 'relative', width: '300px' }}>
+                        <X
+                            size={18}
+                            style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', opacity: search ? 1 : 0, transition: 'opacity 0.2s', zIndex: 10 }}
+                            onClick={() => setSearch('')}
+                        />
+                        <input
+                            type="text"
+                            placeholder="Search variables..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="premium-input"
+                            style={{ padding: '0.6rem 2.5rem 0.6rem 1rem', width: '100%', fontSize: '0.9rem' }}
+                        />
+                    </div>
+                    {((activeTab === 'team' && canManageTeam) || (activeTab === 'org' && canManageGlobal)) && (
+                        <button
+                            className="btn-primary"
+                            onClick={() => { closeModal(); setIsModalOpen(true); }}
+                            disabled={activeTab === 'team' && !currentTeamId}
+                            title={activeTab === 'team' && !currentTeamId ? "Please select a team in the sidebar first" : ""}
+                        >
+                            <Plus size={18} style={{ marginRight: '0.5rem' }} />
+                            Add {activeTab === 'team' ? 'Team' : 'Global'} Variable
+                        </button>
+                    )}
+                </div>
             </div>
 
             {activeTab === 'team' && !currentTeamId && !isPlatformAdmin && (
@@ -194,10 +212,16 @@ export const VariablesPage: React.FC = () => {
             <div className="glass" style={{ padding: '0' }}>
                 <DynamicTable
                     metadata={(activeTab === 'team' ? teamMetadata : orgMetadata)?.columns || []}
-                    data={(activeTab === 'team' ? teamVars : orgVars).map(v => ({
-                        ...v,
-                        _readonly: activeTab === 'org' ? !canManageGlobal : !canManageTeam
-                    }))}
+                    data={(activeTab === 'team' ? teamVars : orgVars)
+                        .filter(v =>
+                            !search ||
+                            v.var_nm?.toLowerCase().includes(search.toLowerCase()) ||
+                            v.description?.toLowerCase().includes(search.toLowerCase())
+                        )
+                        .map(v => ({
+                            ...v,
+                            _readonly: activeTab === 'org' ? !canManageGlobal : !canManageTeam
+                        }))}
                     primaryKey="id"
                     onEdit={handleEdit}
                     onDelete={handleDelete}

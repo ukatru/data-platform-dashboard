@@ -20,9 +20,10 @@ def list_schemas(
     current_user: models.ETLUser = Depends(auth.require_analyst)
 ):
     """List all parameter schemas for the current organization and active team focus"""
-    query = db.query(models.ETLParamsSchema, models.ETLTeam.team_nm, models.ETLOrg.org_code)\
+    query = db.query(models.ETLParamsSchema, models.ETLTeam.team_nm, models.ETLOrg.org_code, models.ETLJobDefinition.job_nm)\
         .join(models.ETLTeam, models.ETLParamsSchema.team_id == models.ETLTeam.id)\
-        .join(models.ETLOrg, models.ETLParamsSchema.org_id == models.ETLOrg.id)
+        .join(models.ETLOrg, models.ETLParamsSchema.org_id == models.ETLOrg.id)\
+        .outerjoin(models.ETLJobDefinition, models.ETLParamsSchema.job_definition_id == models.ETLJobDefinition.id)
         
     if tenant_ctx.org_id is not None:
         query = query.filter(models.ETLParamsSchema.org_id == tenant_ctx.org_id)
@@ -36,9 +37,10 @@ def list_schemas(
         
     results = query.all()
     schemas_list = []
-    for s, team_nm, org_code in results:
+    for s, team_nm, org_code, job_nm in results:
         s.team_nm = team_nm
         s.org_code = org_code
+        s.job_nm = job_nm
         schemas_list.append(s)
     return schemas_list
 
@@ -81,7 +83,9 @@ def get_schema_by_job(
     current_user: models.ETLUser = Depends(auth.require_analyst)
 ):
     """Get schema by job name and code location"""
-    query = db.query(models.ETLParamsSchema).filter(models.ETLParamsSchema.job_nm == job_nm)
+    query = db.query(models.ETLParamsSchema)\
+        .join(models.ETLJobDefinition)\
+        .filter(models.ETLJobDefinition.job_nm == job_nm)
     
     if code_location_id:
         query = query.filter(models.ETLParamsSchema.code_location_id == code_location_id)

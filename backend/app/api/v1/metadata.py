@@ -53,6 +53,7 @@ STATUS_COLUMNS = [
     schemas.ColumnMetadata(name="run_mde_txt", label="Mode", data_type="string", visible=False, sortable=True),
     schemas.ColumnMetadata(name="strt_dttm", label="Start Time", data_type="datetime", visible=True, sortable=True, render_hint="datetime", width="180px"),
     schemas.ColumnMetadata(name="end_dttm", label="End Time", data_type="datetime", visible=False, sortable=True, render_hint="datetime"),
+    schemas.ColumnMetadata(name="log_url", label="Logs", data_type="string", visible=True, sortable=False, render_hint="external_link", width="80px"),
 ]
 
 VARIABLE_COLUMNS = [

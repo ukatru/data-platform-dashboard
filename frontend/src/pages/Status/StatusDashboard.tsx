@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api, TableMetadata } from '../../services/api';
 import { DynamicTable } from '../../components/DynamicTable';
-import { Search } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export const StatusDashboard: React.FC = () => {
@@ -65,42 +65,67 @@ export const StatusDashboard: React.FC = () => {
     }
 
     return (
-        <div>
-            <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Status Monitoring</h1>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
-                Real-time job execution monitoring
-            </p>
-
-            <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
-                <div className="glass" style={{ flex: 1, padding: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <Search size={20} color="var(--text-secondary)" />
-                    <input
-                        type="text"
-                        placeholder="Search by job name..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        style={{ background: 'transparent', border: 'none', outline: 'none', width: '100%' }}
-                    />
+        <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem' }}>
+                <div>
+                    <h1 style={{ fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '0.5rem', background: 'linear-gradient(to bottom right, #fff, #94a3b8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                        Status Monitoring
+                    </h1>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-secondary)' }}>
+                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)', boxShadow: '0 0 12px var(--success)', animation: 'pulse 2s infinite' }}></div>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 500, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Live System Status</span>
+                    </div>
                 </div>
-
-                <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    style={{ width: '200px' }}
-                >
-                    <option value="">All Statuses</option>
-                    <option value="R">Running</option>
-                    <option value="C">Success</option>
-                    <option value="A">Failed</option>
-                </select>
             </div>
 
-            <DynamicTable
-                metadata={metadata.columns}
-                data={jobs}
-                primaryKey={metadata.primary_key}
-                emptyMessage="No job runs found for this team."
-            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    <div className="premium-search-container" style={{ position: 'relative', width: '380px' }}>
+                        <X
+                            size={18}
+                            style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', opacity: search ? 1 : 0, transition: 'opacity 0.2s', zIndex: 10 }}
+                            onClick={() => setSearch('')}
+                        />
+                        <input
+                            type="text"
+                            placeholder="Filter by job name..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="premium-input"
+                            style={{ padding: '0.6rem 2.5rem 0.6rem 1rem', width: '100%', fontSize: '0.9rem' }}
+                        />
+                    </div>
+
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="dark-select"
+                        style={{ width: '160px', padding: '0.6rem 1rem', fontSize: '0.85rem' }}
+                    >
+                        <option value="">All Statuses</option>
+                        <option value="R">Running</option>
+                        <option value="C">Success</option>
+                        <option value="A">Failed</option>
+                    </select>
+                </div>
+            </div>
+
+            <div className="premium-glass" style={{ overflow: 'hidden', borderRadius: 'var(--radius-lg)' }}>
+                <DynamicTable
+                    metadata={metadata.columns}
+                    data={jobs}
+                    primaryKey={metadata.primary_key}
+                    emptyMessage="No job runs found for this team."
+                />
+            </div>
+
+            <style>{`
+                @keyframes pulse {
+                    0% { opacity: 1; transform: scale(1); }
+                    50% { opacity: 0.4; transform: scale(0.8); }
+                    100% { opacity: 1; transform: scale(1); }
+                }
+            `}</style>
         </div>
     );
 };

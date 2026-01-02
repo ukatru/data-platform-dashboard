@@ -18,6 +18,7 @@ export const CodeLocationManagement: React.FC = () => {
         team_id: 0
     });
     const [error, setError] = useState<string | null>(null);
+    const [search, setSearch] = useState('');
 
     useEffect(() => {
         const fetchMetadata = async () => {
@@ -48,6 +49,11 @@ export const CodeLocationManagement: React.FC = () => {
     useEffect(() => {
         fetchRepositories();
     }, [currentTeamId]);
+
+    const filteredRepositories = repositories.filter(repo =>
+        repo.location_nm?.toLowerCase().includes(search.toLowerCase()) ||
+        repo.repo_url?.toLowerCase().includes(search.toLowerCase())
+    );
 
     useEffect(() => {
         const fetchTeams = async () => {
@@ -155,9 +161,27 @@ export const CodeLocationManagement: React.FC = () => {
                 </RoleGuard>
             </div>
 
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '2.5rem' }}>
+                <div className="premium-search-container" style={{ position: 'relative', width: '400px' }}>
+                    <X
+                        size={18}
+                        style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', opacity: search ? 1 : 0, transition: 'opacity 0.2s', zIndex: 10 }}
+                        onClick={() => setSearch('')}
+                    />
+                    <input
+                        type="text"
+                        placeholder="Search repositories..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="premium-input"
+                        style={{ padding: '0.6rem 2.5rem 0.6rem 1rem', width: '100%', fontSize: '0.9rem' }}
+                    />
+                </div>
+            </div>
+
             <DynamicTable
                 metadata={metadata.columns}
-                data={repositories}
+                data={filteredRepositories}
                 primaryKey="id"
                 onEdit={handleEdit}
                 onDelete={handleDelete}

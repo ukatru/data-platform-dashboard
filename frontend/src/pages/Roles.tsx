@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
-import { Shield, CheckCircle2, Info } from 'lucide-react';
+import { Shield, CheckCircle2, Info, X } from 'lucide-react';
 
 export const RolesManagement: React.FC = () => {
     const [roles, setRoles] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState('');
 
     useEffect(() => {
         const fetchRoles = async () => {
@@ -68,11 +69,28 @@ export const RolesManagement: React.FC = () => {
                 </section>
 
                 <section>
-                    <h3 style={{ marginBottom: '1.5rem' }}>Defined Roles</h3>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                        <h3 style={{ margin: 0 }}>Defined Roles</h3>
+                        <div className="premium-search-container" style={{ position: 'relative', width: '300px' }}>
+                            <X
+                                size={18}
+                                style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', opacity: search ? 1 : 0, transition: 'opacity 0.2s', zIndex: 10 }}
+                                onClick={() => setSearch('')}
+                            />
+                            <input
+                                type="text"
+                                placeholder="Search roles..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="premium-input"
+                                style={{ padding: '0.6rem 2.5rem 0.6rem 1rem', width: '100%', fontSize: '0.9rem' }}
+                            />
+                        </div>
+                    </div>
                     <div style={{ display: 'grid', gap: '1rem' }}>
                         {loading ? (
                             <div className="glass" style={{ padding: '2rem', textAlign: 'center' }}>Loading roles...</div>
-                        ) : roles.map(role => (
+                        ) : roles.filter(r => r.role_nm.toLowerCase().includes(search.toLowerCase()) || (r.description && r.description.toLowerCase().includes(search.toLowerCase()))).map(role => (
                             <div key={role.id} className="glass" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div style={{ flex: 1 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>

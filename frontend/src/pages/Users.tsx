@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { UserPlus, Shield, X, Search, Download, CheckSquare, Square, Info, Users as UsersIcon } from 'lucide-react';
+import { UserPlus, Shield, X, Download, CheckSquare, Square, Info, Users as UsersIcon } from 'lucide-react';
 
 export const UserManagement: React.FC = () => {
     const [users, setUsers] = useState<any[]>([]);
@@ -378,23 +378,20 @@ export const UserManagement: React.FC = () => {
                 ))}
             </div>
 
-            {/* Filter Bar */}
-            <div style={{ marginBottom: '2rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
-                    <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+            <div style={{ marginBottom: '2.5rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                <div className="premium-search-container" style={{ position: 'relative', width: '400px' }}>
+                    <X
+                        size={18}
+                        style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', opacity: searchQuery ? 1 : 0, transition: 'opacity 0.2s', zIndex: 10 }}
+                        onClick={() => setSearchQuery('')}
+                    />
                     <input
                         type="text"
                         placeholder={activeTab === 'teams' ? "Search teams..." : "Filter by name or email..."}
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
-                        style={{
-                            width: '100%',
-                            padding: '0.75rem 1rem 0.75rem 3rem',
-                            background: 'rgba(255,255,255,0.05)',
-                            border: '1px solid var(--glass-border)',
-                            borderRadius: '12px',
-                            color: 'white'
-                        }}
+                        className="premium-input"
+                        style={{ padding: '0.6rem 2.5rem 0.6rem 1rem', width: '100%', fontSize: '0.9rem' }}
                     />
                 </div>
                 {selectedUserIds.length > 0 && activeTab === 'users' && (

@@ -13,8 +13,10 @@ export const SchemaList: React.FC = () => {
     const [pipelines, setPipelines] = useState<any[]>([]);
     const [showModal, setShowModal] = useState(false);
     const [viewingSchema, setViewingSchema] = useState<any>(null);
+    const [search, setSearch] = useState('');
     const [formData, setFormData] = useState({
         job_nm: '',
+        job_definition_id: '' as string | number,
         description: '',
         code_location_id: '' as string | number,
         json_schema: '{\n  "type": "object",\n  "properties": {\n    \n  }\n}',
@@ -54,6 +56,7 @@ export const SchemaList: React.FC = () => {
     const handleCreate = () => {
         setFormData({
             job_nm: '',
+            job_definition_id: '',
             description: '',
             code_location_id: codeLocations[0]?.id || '',
             json_schema: '{\n  "type": "object",\n  "properties": {\n    \n  }\n}',
@@ -70,7 +73,7 @@ export const SchemaList: React.FC = () => {
         try {
             const parsedSchema = JSON.parse(formData.json_schema);
             await api.schemas.create({
-                job_nm: formData.job_nm,
+                job_definition_id: formData.job_definition_id,
                 description: formData.description,
                 code_location_id: formData.code_location_id,
                 json_schema: parsedSchema,
@@ -106,21 +109,44 @@ export const SchemaList: React.FC = () => {
                     <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Schemas</h1>
                     <p style={{ color: 'var(--text-secondary)' }}>Manage JSON Schema registry for parameter validation</p>
                 </div>
-                <RoleGuard requiredRole="DPE_DEVELOPER">
-                    <button className="btn-primary" onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <Plus size={20} /> Register Schema
-                    </button>
-                </RoleGuard>
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    <div className="premium-search-container" style={{ position: 'relative', width: '300px' }}>
+                        <X
+                            size={18}
+                            style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', opacity: search ? 1 : 0, transition: 'opacity 0.2s', zIndex: 10 }}
+                            onClick={() => setSearch('')}
+                        />
+                        <input
+                            type="text"
+                            placeholder="Search schemas..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="premium-input"
+                            style={{ padding: '0.6rem 2.5rem 0.6rem 1rem', width: '100%', fontSize: '0.9rem' }}
+                        />
+                    </div>
+                    <RoleGuard requiredRole="DPE_DEVELOPER">
+                        <button className="btn-primary" onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <Plus size={20} /> Register Schema
+                        </button>
+                    </RoleGuard>
+                </div>
             </div>
 
             <DynamicTable
                 metadata={enhancedMetadata.columns}
-                data={schemas.map(s => ({
-                    ...s,
-                    // Mark as read-only if authored by the Git Sync process
-                    _readonly: s.creat_by_nm === 'ParamsDagsterFactory.Sync',
-                    source: s.creat_by_nm === 'ParamsDagsterFactory.Sync' ? 'GIT' : 'PORTAL'
-                }))}
+                data={schemas
+                    .filter(s =>
+                        !search ||
+                        s.job_nm?.toLowerCase().includes(search.toLowerCase()) ||
+                        s.description?.toLowerCase().includes(search.toLowerCase())
+                    )
+                    .map(s => ({
+                        ...s,
+                        // Mark as read-only if authored by the Git Sync process
+                        _readonly: s.creat_by_nm === 'ParamsDagsterFactory.Sync',
+                        source: s.creat_by_nm === 'ParamsDagsterFactory.Sync' ? 'GIT' : 'PORTAL'
+                    }))}
                 onLinkClick={handleView}
                 linkColumn="job_nm"
                 primaryKey="id"
@@ -150,6 +176,7 @@ export const SchemaList: React.FC = () => {
                                         setFormData({
                                             ...formData,
                                             job_nm: selectedJob,
+                                            job_definition_id: pipe?.id || '',
                                             code_location_id: pipe?.code_location_id || formData.code_location_id
                                         });
                                     }}

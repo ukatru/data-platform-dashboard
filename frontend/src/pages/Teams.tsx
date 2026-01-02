@@ -18,6 +18,7 @@ export const TeamManagement: React.FC = () => {
     const [memberLoading, setMemberLoading] = useState(false);
     const [showMemberModal, setShowMemberModal] = useState(false);
     const [newMemberData, setNewMemberData] = useState({ user_id: '', role_id: '' });
+    const [searchQuery, setSearchQuery] = useState('');
 
     const { currentOrg } = useAuth();
 
@@ -143,8 +144,29 @@ export const TeamManagement: React.FC = () => {
                 </button>
             </div>
 
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '2.5rem' }}>
+                <div className="premium-search-container" style={{ position: 'relative', width: '400px' }}>
+                    <X
+                        size={18}
+                        style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', opacity: searchQuery ? 1 : 0, transition: 'opacity 0.2s', zIndex: 10 }}
+                        onClick={() => setSearchQuery('')}
+                    />
+                    <input
+                        type="text"
+                        placeholder="Search teams..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="premium-input"
+                        style={{ padding: '0.6rem 2.5rem 0.6rem 1rem', width: '100%', fontSize: '0.9rem' }}
+                    />
+                </div>
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem' }}>
-                {teams.map(team => (
+                {teams.filter(t =>
+                    t.team_nm.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    (t.description && t.description.toLowerCase().includes(searchQuery.toLowerCase()))
+                ).map(team => (
                     <div key={team.id} className="glass" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                             <div style={{

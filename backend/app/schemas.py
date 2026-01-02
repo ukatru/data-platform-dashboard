@@ -145,7 +145,7 @@ class ConnTypeSchema(ConnTypeSchemaBase, AuditBase):
 
 # Parameter Schema (JSON Schema Registry)
 class ParamsSchemaBase(ModelBase):
-    job_definition_id: int
+    job_definition_id: Optional[int] = None
     json_schema: Dict[str, Any]
     description: Optional[str] = None
     org_id: Optional[int] = None

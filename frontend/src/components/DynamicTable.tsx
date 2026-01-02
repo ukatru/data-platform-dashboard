@@ -153,7 +153,30 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
         }
 
         if (col.render_hint === 'external_link' && value) {
-            return <a href={value} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-primary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.85rem' }}>{value} <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg></a>;
+            return (
+                <a
+                    href={value}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="glass-button-sm"
+                    style={{
+                        color: 'var(--accent-primary)',
+                        textDecoration: 'none',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        fontSize: '0.75rem',
+                        padding: '0.2rem 0.6rem',
+                        borderRadius: '4px',
+                        background: 'rgba(56, 189, 248, 0.05)',
+                        border: '1px solid rgba(56, 189, 248, 0.1)',
+                        transition: 'all 0.2s'
+                    }}
+                >
+                    <span>View</span>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                </a>
+            );
         }
 
         if (col.render_hint === 'code') {
@@ -177,22 +200,23 @@ export const DynamicTable: React.FC<DynamicTableProps> = ({
                                 flex: 1,
                                 overflow: 'hidden'
                             }}
+                            title="View in Dagster"
                         >
                             <code style={{
                                 fontFamily: 'monospace',
-                                fontSize: '0.8rem',
-                                background: 'rgba(56, 189, 248, 0.1)',
+                                fontSize: '0.75rem',
+                                background: 'rgba(255, 255, 255, 0.03)',
                                 padding: '0.2rem 0.4rem',
                                 borderRadius: '4px',
-                                color: 'var(--accent-primary)',
-                                border: '1px solid rgba(56, 189, 248, 0.2)',
+                                color: 'var(--text-secondary)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
-                            }} title="View in Dagster Cloud">
+                                whiteSpace: 'nowrap',
+                                transition: 'all 0.2s'
+                            }}>
                                 {value}
                             </code>
-                            <span style={{ opacity: 0.7 }}><Play size={10} /></span>
                         </a>
                     ) : (
                         <code style={{

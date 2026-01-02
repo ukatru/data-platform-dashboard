@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api, TableMetadata } from '../../services/api';
 import { DynamicTable } from '../../components/DynamicTable';
-import { Search, X, Clock, HelpCircle } from 'lucide-react';
+import { X, Clock, HelpCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSearchParams } from 'react-router-dom';
 import { ResourceDeleteModal } from '../../components/ResourceDeleteModal';
@@ -252,9 +252,13 @@ export const PipelineList: React.FC = () => {
                 </div>
             </div>
 
-            <div className="command-bar">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
-                    <Search size={18} color="var(--accent-primary)" />
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '2rem' }}>
+                <div className="premium-search-container" style={{ position: 'relative', width: '400px' }}>
+                    <X
+                        size={18}
+                        style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', opacity: search ? 1 : 0, transition: 'opacity 0.2s', zIndex: 10 }}
+                        onClick={() => setSearch('')}
+                    />
                     <input
                         type="text"
                         placeholder="Search pipelines..."
@@ -264,7 +268,7 @@ export const PipelineList: React.FC = () => {
                             setPageOffset(0);
                         }}
                         className="premium-input"
-                        style={{ background: 'transparent', border: 'none', outline: 'none', width: '100%', boxShadow: 'none', fontSize: '0.9rem' }}
+                        style={{ padding: '0.6rem 2.5rem 0.6rem 1rem', width: '100%', fontSize: '0.9rem' }}
                     />
                 </div>
             </div>
