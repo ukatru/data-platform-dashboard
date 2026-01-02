@@ -51,15 +51,15 @@ export const PipelineList: React.FC = () => {
         const h = parseInt(hh, 10);
         const m = parseInt(mm, 10);
 
-        if (scheduleType === 'daily') return `0 ${m} ${h} * * *`;
-        if (scheduleType === 'weekly') return `0 ${m} ${h} * * ${scheduleDay}`;
+        if (scheduleType === 'daily') return `${m} ${h} * * *`;
+        if (scheduleType === 'weekly') return `${m} ${h} * * ${scheduleDay}`;
         if (scheduleType === 'monthly') {
             if (monthlyMode === 'date') {
                 const dayPart = isLastDayOfMonth ? 'L' : scheduleDay;
-                return `0 ${m} ${h} ${dayPart} * *`;
+                return `${m} ${h} ${dayPart} * *`;
             } else {
                 const dayOfWeekPart = monthlyOrdinal === 'L' ? `${scheduleDay}L` : `${scheduleDay}#${monthlyOrdinal}`;
-                return `0 ${m} ${h} * * ${dayOfWeekPart}`;
+                return `${m} ${h} * * ${dayOfWeekPart}`;
             }
         }
         return null;
@@ -70,15 +70,15 @@ export const PipelineList: React.FC = () => {
         const parts = cron.split(' ');
         if (parts.length < 5) return { type: 'manual' as const };
 
-        const m = parts[1].padStart(2, '0');
-        const h = parts[2].padStart(2, '0');
+        const m = parts[0].padStart(2, '0');
+        const h = parts[1].padStart(2, '0');
         const time = `${h}:${m}`;
 
-        const dom = parts[3];
-        const mon = parts[4];
-        const dow = parts[5];
+        const dom = parts[2];
+        const mon = parts[3];
+        const dow = parts[4];
 
-        // Daily: 0 m h * * *
+        // Daily: m h * * *
         if (dom === '*' && mon === '*' && (dow === '*' || dow === undefined)) {
             return { type: 'daily' as const, time };
         }
@@ -211,19 +211,25 @@ export const PipelineList: React.FC = () => {
 
         const payload = {
             ...formData,
-            cron_schedule: finalCron || undefined
+            cron_schedule: finalCron || undefined,
+            partition_start_dt: formData.partition_start_dt || undefined
         };
 
         try {
             if (editingPipeline) {
-                await api.pipelines.update(editingPipeline.id, payload);
+                // Strip fields that are not allowed in Update schema (JobUpdate)
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const { job_nm, instance_id, ...updatePayload } = payload as any;
+                await api.pipelines.update(editingPipeline.id, updatePayload);
             } else {
                 await api.pipelines.create(payload);
             }
             setShowModal(false);
             fetchPipelines();
         } catch (err: any) {
-            alert(`Failed to save: ${err.response?.data?.detail || err.message}`);
+            const detail = err.response?.data?.detail;
+            const errorMsg = typeof detail === 'object' ? JSON.stringify(detail) : (detail || err.message);
+            alert(`Failed to save: ${errorMsg}`);
         }
     };
 
