@@ -58,7 +58,7 @@ const CustomCheckboxWidget = (props: WidgetProps) => {
 // --- Custom Field Template for Clean Layout ---
 
 const CustomFieldTemplate = (props: FieldTemplateProps) => {
-    const { id, classNames, label, help, required, description, errors, children, schema } = props;
+    const { id, label, required, description, errors, children, schema, help } = props;
 
     // Hide fieldsets for objects to keep it flat and clean
     if (schema.type === 'object' && !label) {
@@ -106,6 +106,21 @@ const CustomFieldTemplate = (props: FieldTemplateProps) => {
     );
 };
 
+const CustomObjectFieldTemplate = (props: any) => {
+    return <div>{props.properties.map((p: any) => p.content)}</div>;
+};
+
+const customWidgets = {
+    TextWidget: CustomTextWidget,
+    SelectWidget: CustomSelectWidget,
+    CheckboxWidget: CustomCheckboxWidget,
+};
+
+const customTemplates = {
+    FieldTemplate: CustomFieldTemplate,
+    ObjectFieldTemplate: CustomObjectFieldTemplate
+};
+
 interface GenericSchemaFormProps {
     schema: RJSFSchema;
     formData: any;
@@ -116,12 +131,6 @@ interface GenericSchemaFormProps {
     readOnly?: boolean;
     layout?: 'default' | 'compact';
 }
-
-const customWidgets = {
-    TextWidget: CustomTextWidget,
-    SelectWidget: CustomSelectWidget,
-    CheckboxWidget: CustomCheckboxWidget,
-};
 
 /**
  * A reusable wrapper around react-jsonschema-form with the dashboard's styling and validation.
@@ -137,15 +146,36 @@ export const GenericSchemaForm: React.FC<GenericSchemaFormProps> = ({
     layout = 'default'
 }) => {
     const [localFormData, setLocalFormData] = React.useState(initialFormData);
+    const [pristineData, setPristineData] = React.useState(initialFormData);
+    const lastEmittedData = React.useRef(initialFormData);
 
     React.useEffect(() => {
-        setLocalFormData(initialFormData);
+        // Only update the baseline if the incoming initialFormData is significantly different
+        // from what we just emitted, or if we don't have a baseline yet.
+        const isInternalUpdate = JSON.stringify(initialFormData) === JSON.stringify(lastEmittedData.current);
+
+        if (!isInternalUpdate) {
+            setLocalFormData(initialFormData);
+            setPristineData(initialFormData);
+            lastEmittedData.current = initialFormData;
+        }
     }, [initialFormData]);
 
     const handleChange = (data: any) => {
         setLocalFormData(data);
+        lastEmittedData.current = data;
         if (onChange) onChange(data);
     };
+
+    const handleCancel = () => {
+        if (window.confirm('Discard all unsaved changes?')) {
+            setLocalFormData(pristineData);
+            lastEmittedData.current = pristineData;
+            if (onChange) onChange(pristineData);
+        }
+    };
+
+    const hasChanges = JSON.stringify(localFormData) !== JSON.stringify(pristineData);
 
     return (
         <div className={`dynamic-form nexus-theme ${layout === 'compact' ? 'compact' : ''}`}>
@@ -154,10 +184,7 @@ export const GenericSchemaForm: React.FC<GenericSchemaFormProps> = ({
                 formData={localFormData}
                 validator={validator}
                 widgets={customWidgets}
-                templates={{
-                    FieldTemplate: CustomFieldTemplate,
-                    ObjectFieldTemplate: (props) => <div>{props.properties.map(p => p.content)}</div>
-                }}
+                templates={customTemplates}
                 formContext={{ layout }}
                 onSubmit={({ formData }) => onSubmit(formData)}
                 onChange={({ formData }) => handleChange(formData)}
@@ -168,9 +195,30 @@ export const GenericSchemaForm: React.FC<GenericSchemaFormProps> = ({
                     <div style={{ display: 'none' }} />
                 ) : (
                     children || customActions?.(localFormData) || (
-                        <div style={{ marginTop: '2.5rem' }}>
+                        <div style={{ marginTop: '2.5rem', display: 'flex', gap: '1rem' }}>
+                            {hasChanges && (
+                                <button
+                                    type="button"
+                                    className="btn-secondary"
+                                    onClick={handleCancel}
+                                    style={{
+                                        flex: 1,
+                                        padding: '1rem',
+                                        fontSize: '0.95rem',
+                                        fontWeight: 700,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.05em',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '0.5rem'
+                                    }}
+                                >
+                                    Cancel Edits
+                                </button>
+                            )}
                             <button type="submit" className="btn-primary" style={{
-                                width: '100%',
+                                flex: 2,
                                 padding: '1rem',
                                 fontSize: '0.95rem',
                                 fontWeight: 700,
