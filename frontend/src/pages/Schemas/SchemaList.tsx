@@ -14,6 +14,7 @@ export const SchemaList: React.FC = () => {
     const [showModal, setShowModal] = useState(false);
     const [viewingSchema, setViewingSchema] = useState<any>(null);
     const [search, setSearch] = useState('');
+    const [locFilter, setLocFilter] = useState<string | number>('');
     const [formData, setFormData] = useState({
         job_nm: '',
         job_definition_id: '' as string | number,
@@ -28,11 +29,11 @@ export const SchemaList: React.FC = () => {
                 const [metaRes, locsRes, pipesRes] = await Promise.all([
                     api.metadata.schemas(),
                     api.management.listCodeLocations(),
-                    api.pipelines.list()
+                    api.pipelines.list(200) // Increase limit for dropdown
                 ]);
                 setMetadata(metaRes.data);
                 setCodeLocations(locsRes.data);
-                setPipelines(pipesRes.data);
+                setPipelines(pipesRes.data.items || pipesRes.data);
             } catch (err) {
                 console.error('Failed to fetch reference data', err);
             }
@@ -110,7 +111,7 @@ export const SchemaList: React.FC = () => {
                     <p style={{ color: 'var(--text-secondary)' }}>Manage JSON Schema registry for parameter validation</p>
                 </div>
                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    <div className="premium-search-container" style={{ position: 'relative', width: '300px' }}>
+                    <div className="premium-search-container" style={{ position: 'relative', width: '400px' }}>
                         <X
                             size={18}
                             style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', opacity: search ? 1 : 0, transition: 'opacity 0.2s', zIndex: 10 }}
@@ -118,15 +119,28 @@ export const SchemaList: React.FC = () => {
                         />
                         <input
                             type="text"
-                            placeholder="Search schemas..."
+                            placeholder="Filter by job name or description..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             className="premium-input"
                             style={{ padding: '0.6rem 2.5rem 0.6rem 1rem', width: '100%', fontSize: '0.9rem' }}
                         />
                     </div>
+
+                    <select
+                        value={locFilter}
+                        onChange={(e) => setLocFilter(e.target.value)}
+                        className="dark-select"
+                        style={{ width: '200px', padding: '0.6rem 1rem', fontSize: '0.85rem' }}
+                    >
+                        <option value="">All Locations</option>
+                        {codeLocations.map(loc => (
+                            <option key={loc.id} value={loc.id}>{loc.location_nm}</option>
+                        ))}
+                    </select>
+
                     <RoleGuard requiredRole="DPE_DEVELOPER">
-                        <button className="btn-primary" onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <button className="btn-primary" onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}>
                             <Plus size={20} /> Register Schema
                         </button>
                     </RoleGuard>
@@ -136,11 +150,13 @@ export const SchemaList: React.FC = () => {
             <DynamicTable
                 metadata={enhancedMetadata.columns}
                 data={schemas
-                    .filter(s =>
-                        !search ||
-                        s.job_nm?.toLowerCase().includes(search.toLowerCase()) ||
-                        s.description?.toLowerCase().includes(search.toLowerCase())
-                    )
+                    .filter(s => {
+                        const matchesSearch = !search ||
+                            s.job_nm?.toLowerCase().includes(search.toLowerCase()) ||
+                            s.description?.toLowerCase().includes(search.toLowerCase());
+                        const matchesLoc = !locFilter || s.code_location_id === parseInt(locFilter as string);
+                        return matchesSearch && matchesLoc;
+                    })
                     .map(s => ({
                         ...s,
                         // Mark as read-only if authored by the Git Sync process
